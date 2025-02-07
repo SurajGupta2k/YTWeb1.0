@@ -1,5 +1,5 @@
 // API key configuration
-const apiKey = 'AIzaSyBJuP51K8xODC9Iq_pBD88VnS91xnR0rQ0';
+const apiKey = 'AIzaSyB7W9EXdi70d8bM-qnti0ujTM0iuA8vNzs';
 
 // Global variables
 let videos = [];
