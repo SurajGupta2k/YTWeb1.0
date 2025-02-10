@@ -1,7 +1,3 @@
-<<<<<<< Updated upstream
-// API key configuration
-const apiKey = 'AIzaSyB7W9EXdi70d8bM-qnti0ujTM0iuA8vNzs';
-=======
 // YouTube API key rotation system
 // Multiple API keys are used to handle quota limits gracefully
 const apiKeys = [
@@ -12,7 +8,6 @@ const apiKeys = [
     'AIzaSyBJPNjjSjSLU0l0Y_rQ0af0Z7elWNNrgbQ'
 ];
 let currentApiKeyIndex = 0;
->>>>>>> Stashed changes
 
 // Get current API key from the rotation
 function getCurrentApiKey() {
