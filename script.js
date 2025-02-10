@@ -1,11 +1,7 @@
 // YouTube API key rotation system
 // Multiple API keys are used to handle quota limits gracefully
 const apiKeys = [
-    'AIzaSyACa-u0MCCbw5TEU2cw7qTgy4mmKq8_KWI',
-    'AIzaSyARk_biBXGLZEfuMXm2plw9QDmsrSlld0w',
-    'AIzaSyAfAxofftgj_r1LP1KcvTHof94AIgFL1l8',
-    'AIzaSyDFrOkjC18GKf2kkLuagJm_irsNcuCYBRY',
-    'AIzaSyBJPNjjSjSLU0l0Y_rQ0af0Z7elWNNrgbQ'
+    // your youtube v3  api keys
 ];
 let currentApiKeyIndex = 0;
 
