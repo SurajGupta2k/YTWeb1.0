@@ -1,0 +1,17 @@
+{
+    "version": 2,
+    "routes": [
+        {
+            "src": "/api/cache",
+            "methods": ["GET", "POST", "OPTIONS"],
+            "dest": "/api/cache.js"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/public/$1"
+        }
+    ],
+    "env": {
+        "MONGODB_URI": "@mongodb_uri"
+    }
+} 
