@@ -1,0 +1,9 @@
+# Files that contain secrets and private info
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Installed packages - don't commit these, use package.json instead
+node_modules
