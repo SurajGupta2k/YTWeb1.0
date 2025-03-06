@@ -1,14 +1,106 @@
-// API key configuration
-const apiKey = 'AIzaSyB7W9EXdi70d8bM-qnti0ujTM0iuA8vNzs';
+// YouTube API key rotation system
+// Multiple API keys are used to handle quota limits gracefully
+const apiKeys = [
+    'AIzaSyACa-u0MCCbw5TEU2cw7qTgy4mmKq8_KWI',
+    'AIzaSyARk_biBXGLZEfuMXm2plw9QDmsrSlld0w',
+    'AIzaSyAfAxofftgj_r1LP1KcvTHof94AIgFL1l8',
+    'AIzaSyDFrOkjC18GKf2kkLuagJm_irsNcuCYBRY',
+    'AIzaSyBJPNjjSjSLU0l0Y_rQ0af0Z7elWNNrgbQ'
+];
+let currentApiKeyIndex = 0;
 
-// Global variables
+// Get current API key from the rotation
+function getCurrentApiKey() {
+    return apiKeys[currentApiKeyIndex];
+}
+
+// Rotate to next API key when quota is exceeded
+function rotateApiKey() {
+    const previousIndex = currentApiKeyIndex;
+    currentApiKeyIndex = (currentApiKeyIndex + 1) % apiKeys.length;
+    // Log rotation without exposing keys
+    console.log(`API key rotated: ${previousIndex + 1} → ${currentApiKeyIndex + 1}`);
+    return getCurrentApiKey();
+}
+
+// Track API usage and errors
+const apiUsage = {
+    requests: 0,
+    errors: 0,
+    quotaExceeded: 0,
+    lastRotation: null
+};
+
+// Handle API errors consistently
+async function handleApiError(error, retryFunction, ...args) {
+    apiUsage.errors++;
+    
+    if (error.message.includes('quota')) {
+        apiUsage.quotaExceeded++;
+        apiUsage.lastRotation = new Date();
+        
+        if (apiUsage.quotaExceeded >= apiKeys.length) {
+            throw new Error('All API keys have exceeded their quota. Please try again later.');
+        }
+        
+        console.log(`API quota exceeded. Rotating keys (${apiUsage.quotaExceeded}/${apiKeys.length})`);
+        rotateApiKey();
+        return retryFunction(...args);
+    }
+    
+    throw error;
+}
+
+// Check if a video is a livestream based on its metadata
+function isStreamVideo(videoItem) {
+    if (!videoItem.liveStreamingDetails) {
+        return false;
+    }
+
+    const hasActualStartTime = !!videoItem.liveStreamingDetails.actualStartTime;
+    const hasScheduledStartTime = !!videoItem.liveStreamingDetails.scheduledStartTime;
+    
+    return hasActualStartTime || hasScheduledStartTime;
+}
+
+// Local storage cache management
+// Caches channel data to reduce API calls and save quota
+function getCachedChannelData(channelHandle) {
+    try {
+        const cache = localStorage.getItem(`channel_${channelHandle}`);
+        if (cache) {
+            const data = JSON.parse(cache);
+            // Cache expires after 24 hours
+            if (Date.now() - data.timestamp < 24 * 60 * 60 * 1000) {
+                return data;
+            }
+        }
+    } catch (error) {
+        console.error('Cache error:', error);
+    }
+    return null;
+}
+
+// Save channel data to local storage with timestamp
+function cacheChannelData(channelHandle, data) {
+    try {
+        const cacheData = {
+            ...data,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(`channel_${channelHandle}`, JSON.stringify(cacheData));
+    } catch (error) {
+        console.error('Cache error:', error);
+    }
+}
+
+// Global state management
 let videos = [];
 let channelId = '';
 let channelSearchMode = false;
 
-// Wait for DOM to be fully loaded
+// Initialize event listeners when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
-    // Event listeners for controls
     document.getElementById('load-playlist').addEventListener('click', loadPlaylist);
     document.getElementById('sort-old-new').addEventListener('click', () => sortPlaylist(true));
     document.getElementById('sort-new-old').addEventListener('click', () => sortPlaylist(false));
@@ -22,6 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// Main function to handle playlist/channel loading
 async function loadPlaylist() {
     const loadingElement = document.getElementById('loading');
     loadingElement.style.display = 'block';
@@ -50,24 +143,45 @@ async function loadPlaylist() {
         }
     } catch (error) {
         console.error('Error:', error.message);
-        alert(error.message || 'An error occurred while loading the data. Please try again.');
-        videoList.innerHTML = `<p class="text-red-500 text-center p-4">${error.message}</p>`;
+        if (error.message.includes('quota')) {
+            alert('API quota exceeded. Switching to another API key...');
+            rotateApiKey();
+            await loadPlaylist(); // Retry with new API key
+        } else {
+            alert(error.message || 'An error occurred while loading the data. Please try again.');
+            videoList.innerHTML = `<p class="text-red-500 text-center p-4">${error.message}</p>`;
+        }
     } finally {
         loadingElement.style.display = 'none';
     }
 }
 
+// Fetch channel ID from handle with caching
 async function getChannelId(channelHandle) {
     if (!channelHandle) {
         throw new Error('Channel handle is required');
     }
 
+    // Try to get data from cache first
+    const cachedData = getCachedChannelData(channelHandle);
+    if (cachedData) {
+        console.log('Using cached channel data');
+        channelId = cachedData.channelId;
+        window.uploadsPlaylistId = cachedData.uploadsPlaylistId;
+        showChannelOptions();
+        return;
+    }
+
     try {
-        const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent('@' + channelHandle)}&type=channel&key=${apiKey}`;
+        // Search for channel by handle
+        const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent('@' + channelHandle)}&type=channel&key=${getCurrentApiKey()}`;
         const searchResponse = await fetch(searchUrl);
         const searchData = await searchResponse.json();
         
         if (!searchResponse.ok) {
+            if (searchData.error?.message?.includes('quota')) {
+                throw new Error('quota exceeded');
+            }
             throw new Error(searchData.error?.message || 'Failed to search for channel');
         }
 
@@ -82,12 +196,16 @@ async function getChannelId(channelHandle) {
 
         channelId = channel.id.channelId;
         
+        // Get channel details including uploads playlist ID
         const channelResponse = await fetch(
-            `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${apiKey}`
+            `https://www.googleapis.com/youtube/v3/channels?part=contentDetails&id=${channelId}&key=${getCurrentApiKey()}`
         );
         const channelData = await channelResponse.json();
         
         if (!channelResponse.ok) {
+            if (channelData.error?.message?.includes('quota')) {
+                throw new Error('quota exceeded');
+            }
             throw new Error(channelData.error?.message || 'Failed to fetch channel details');
         }
 
@@ -102,13 +220,27 @@ async function getChannelId(channelHandle) {
 
         channelId = channelItem.id;
         window.uploadsPlaylistId = channelItem.contentDetails.relatedPlaylists.uploads;
+
+        // Save to cache for future use
+        cacheChannelData(channelHandle, {
+            channelId: channelId,
+            uploadsPlaylistId: window.uploadsPlaylistId
+        });
+
         showChannelOptions();
     } catch (error) {
         console.error('Error finding channel:', error.message);
-        throw new Error(error.message || 'Channel not found! Please make sure you entered the correct channel URL.');
+        if (error.message.includes('quota')) {
+            alert('API quota exceeded. Switching to another API key...');
+            rotateApiKey();
+            await getChannelId(channelHandle);
+        } else {
+            throw new Error(error.message || 'Channel not found! Please make sure you entered the correct channel URL.');
+        }
     }
 }
 
+// Load videos from a specific playlist
 async function loadPlaylistData(playlistId) {
     if (!playlistId) {
         throw new Error('Playlist ID is required');
@@ -120,11 +252,14 @@ async function loadPlaylistData(playlistId) {
     try {
         do {
             const response = await fetch(
-                `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}&pageToken=${nextPageToken}`
+                `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${getCurrentApiKey()}&pageToken=${nextPageToken}`
             );
             const data = await response.json();
 
             if (!response.ok) {
+                if (data.error?.message?.includes('quota')) {
+                    throw new Error('quota exceeded');
+                }
                 throw new Error(data.error?.message || 'Failed to fetch playlist items');
             }
 
@@ -139,21 +274,34 @@ async function loadPlaylistData(playlistId) {
                     }
 
                     const statsResponse = await fetch(
-                        `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${item.snippet.resourceId.videoId}&key=${apiKey}`
+                        `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet,contentDetails,liveStreamingDetails,status&id=${item.snippet.resourceId.videoId}&key=${getCurrentApiKey()}`
                     );
                     const statsData = await statsResponse.json();
 
-                    if (!statsResponse.ok || !statsData.items?.[0]) {
+                    if (!statsResponse.ok) {
+                        if (statsData.error?.message?.includes('quota')) {
+                            throw new Error('quota exceeded');
+                        }
                         return null;
                     }
 
+                    if (!statsData.items?.[0]) {
+                        return null;
+                    }
+
+                    const videoItem = statsData.items[0];
                     return {
                         title: item.snippet.title,
                         videoId: item.snippet.resourceId.videoId,
                         publishedAt: new Date(item.snippet.publishedAt),
-                        viewCount: parseInt(statsData.items[0].statistics.viewCount || '0', 10)
+                        actualStartTime: videoItem.liveStreamingDetails?.actualStartTime ? new Date(videoItem.liveStreamingDetails.actualStartTime) : null,
+                        viewCount: parseInt(statsData.items[0].statistics.viewCount || '0', 10),
+                        isStream: isStreamVideo(videoItem)
                     };
                 } catch (error) {
+                    if (error.message.includes('quota')) {
+                        throw error;
+                    }
                     console.error('Error fetching video details:', error.message);
                     return null;
                 }
@@ -171,12 +319,19 @@ async function loadPlaylistData(playlistId) {
         displayVideos(videos);
     } catch (error) {
         console.error('Fetch Error:', error.message);
-        throw new Error(error.message || 'Failed to load playlist data');
+        if (error.message.includes('quota')) {
+            alert('API quota exceeded. Switching to another API key...');
+            rotateApiKey();
+            await loadPlaylistData(playlistId);
+        } else {
+            throw new Error(error.message || 'Failed to load playlist data');
+        }
     }
 }
 
+// Load all videos or streams from a channel
 async function loadChannelData(type) {
-    if (!channelId) {
+    if (!channelId || !window.uploadsPlaylistId) {
         alert('Please load a channel first');
         return;
     }
@@ -191,43 +346,47 @@ async function loadChannelData(type) {
     try {
         let totalFetched = 0;
         do {
-            let apiUrl;
-            if (type === 'streams') {
-                apiUrl = `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${window.uploadsPlaylistId}&key=${apiKey}&pageToken=${nextPageToken}`;
-            } else {
-                apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&maxResults=50&type=video&key=${apiKey}&pageToken=${nextPageToken}`;
-            }
-
-            const response = await fetch(apiUrl);
+            // Use uploads playlist for complete video history
+            const response = await fetch(
+                `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${window.uploadsPlaylistId}&key=${getCurrentApiKey()}&pageToken=${nextPageToken}`
+            );
             const data = await response.json();
 
-            if (!response.ok || data.error) {
-                throw new Error(data.error ? data.error.message : response.statusText);
+            if (!response.ok) {
+                if (data.error?.message?.includes('quota')) {
+                    throw new Error('quota exceeded');
+                }
+                throw new Error(data.error?.message || response.statusText);
             }
 
-            if (!data.items || data.items.length === 0) {
+            if (!data.items?.length) {
                 break;
             }
 
             const videoDetails = await Promise.all(data.items.map(async item => {
                 try {
-                    const videoId = type === 'streams' ? item.snippet.resourceId.videoId : item.id.videoId;
+                    const videoId = item.snippet.resourceId.videoId;
                     const detailsResponse = await fetch(
-                        `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet,contentDetails,liveStreamingDetails,status&id=${videoId}&key=${apiKey}`
+                        `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet,contentDetails,liveStreamingDetails,status&id=${videoId}&key=${getCurrentApiKey()}`
                     );
                     const detailsData = await detailsResponse.json();
                     
-                    if (!detailsData.items || detailsData.items.length === 0) {
+                    if (!detailsResponse.ok) {
+                        if (detailsData.error?.message?.includes('quota')) {
+                            throw new Error('quota exceeded');
+                        }
+                        return null;
+                    }
+
+                    if (!detailsData.items?.length) {
                         return null;
                     }
 
                     const videoItem = detailsData.items[0];
+                    const isVideoStream = isStreamVideo(videoItem);
                     
-                    if (type === 'streams' && !videoItem.liveStreamingDetails) {
-                        return null;
-                    }
-                    
-                    if (type !== 'streams' && videoItem.liveStreamingDetails) {
+                    // Filter based on content type (stream/video)
+                    if ((type === 'streams' && !isVideoStream) || (type !== 'streams' && isVideoStream)) {
                         return null;
                     }
 
@@ -235,15 +394,18 @@ async function loadChannelData(type) {
                         title: videoItem.snippet.title,
                         videoId: videoId,
                         publishedAt: new Date(videoItem.snippet.publishedAt),
-                        actualStartTime: videoItem.liveStreamingDetails ? new Date(videoItem.liveStreamingDetails.actualStartTime) : null,
+                        actualStartTime: videoItem.liveStreamingDetails?.actualStartTime ? new Date(videoItem.liveStreamingDetails.actualStartTime) : null,
                         viewCount: parseInt(videoItem.statistics.viewCount || 0, 10),
                         channelTitle: videoItem.snippet.channelTitle,
                         description: videoItem.snippet.description,
                         duration: videoItem.contentDetails.duration,
-                        isStream: !!videoItem.liveStreamingDetails,
+                        isStream: isVideoStream,
                         privacyStatus: videoItem.status.privacyStatus
                     };
                 } catch (error) {
+                    if (error.message.includes('quota')) {
+                        throw error;
+                    }
                     console.error("Error fetching video details:", error);
                     return null;
                 }
@@ -266,16 +428,24 @@ async function loadChannelData(type) {
         }
     } catch (error) {
         console.error("Error loading content:", error);
-        alert(`An error occurred while loading the ${type}. Please try again.`);
+        if (error.message.includes('quota')) {
+            alert('API quota exceeded. Switching to another API key...');
+            rotateApiKey();
+            await loadChannelData(type);
+        } else {
+            alert(`An error occurred while loading the ${type}. Please try again.`);
+        }
     } finally {
         loadingElement.style.display = 'none';
     }
 }
 
+// Show channel-specific options
 function showChannelOptions() {
     document.getElementById('channel-options').style.display = 'block';
 }
 
+// Handle video search functionality
 function searchVideo() {
     const searchTerm = document.getElementById('search-input').value.trim().toLowerCase();
     if (channelSearchMode) {
@@ -289,6 +459,7 @@ function searchVideo() {
     }
 }
 
+// Search videos within a specific channel
 async function searchChannelVideos(query) {
     if (!channelId) {
         alert('Please load a channel first.');
@@ -300,33 +471,63 @@ async function searchChannelVideos(query) {
     videoList.innerHTML = '';
     let nextPageToken = '';
     let searchResults = [];
+    
     try {
         do {
-            const response = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&q=${encodeURIComponent(query)}&maxResults=50&type=video&key=${apiKey}&pageToken=${nextPageToken}`);
+            const response = await fetch(
+                `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channelId}&q=${encodeURIComponent(query)}&maxResults=50&type=video&key=${getCurrentApiKey()}&pageToken=${nextPageToken}`
+            );
             const data = await response.json();
-            if (!response.ok || data.error) {
-                throw new Error(data.error ? data.error.message : response.statusText);
+            
+            if (!response.ok) {
+                if (data.error?.message?.includes('quota')) {
+                    throw new Error('quota exceeded');
+                }
+                throw new Error(data.error?.message || response.statusText);
             }
 
             const videoDetails = await Promise.all(data.items.map(async item => {
-                const videoId = item.id.videoId;
-                const statsResponse = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet,contentDetails,liveStreamingDetails,status&id=${videoId}&key=${apiKey}`);
-                const statsData = await statsResponse.json();
-                if (!statsData.items || statsData.items.length === 0) return null;
-                const videoItem = statsData.items[0];
-                
-                if (videoItem.snippet.title.toLowerCase().includes(query) || videoItem.snippet.description.toLowerCase().includes(query)) {
-                    return {
-                        title: videoItem.snippet.title,
-                        videoId: videoId,
-                        publishedAt: new Date(videoItem.snippet.publishedAt),
-                        viewCount: parseInt(videoItem.statistics.viewCount || 0, 10),
-                        isStream: !!videoItem.liveStreamingDetails,
-                        privacyStatus: videoItem.status.privacyStatus
-                    };
+                try {
+                    const videoId = item.id.videoId;
+                    const statsResponse = await fetch(
+                        `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet,contentDetails,liveStreamingDetails,status&id=${videoId}&key=${getCurrentApiKey()}`
+                    );
+                    const statsData = await statsResponse.json();
+                    
+                    if (!statsResponse.ok) {
+                        if (statsData.error?.message?.includes('quota')) {
+                            throw new Error('quota exceeded');
+                        }
+                        return null;
+                    }
+
+                    if (!statsData.items?.length) {
+                        return null;
+                    }
+
+                    const videoItem = statsData.items[0];
+                    
+                    if (videoItem.snippet.title.toLowerCase().includes(query) || 
+                        videoItem.snippet.description.toLowerCase().includes(query)) {
+                        return {
+                            title: videoItem.snippet.title,
+                            videoId: videoId,
+                            publishedAt: new Date(videoItem.snippet.publishedAt),
+                            viewCount: parseInt(videoItem.statistics.viewCount || 0, 10),
+                            isStream: isStreamVideo(videoItem),
+                            privacyStatus: videoItem.status.privacyStatus
+                        };
+                    }
+                    return null;
+                } catch (error) {
+                    if (error.message.includes('quota')) {
+                        throw error;
+                    }
+                    console.error('Error fetching video details:', error);
+                    return null;
                 }
-                return null;
             }));
+
             const validVideos = videoDetails.filter(v => v !== null);
             searchResults = searchResults.concat(validVideos);
             nextPageToken = data.nextPageToken;
@@ -340,12 +541,19 @@ async function searchChannelVideos(query) {
         displayVideos(searchResults);
     } catch (error) {
         console.error("Error searching channel videos: ", error);
-        alert('An error occurred while searching channel videos. Please try again.');
+        if (error.message.includes('quota')) {
+            alert('API quota exceeded. Switching to another API key...');
+            rotateApiKey();
+            await searchChannelVideos(query);
+        } else {
+            alert('An error occurred while searching channel videos. Please try again.');
+        }
     } finally {
         loadingElement.style.display = 'none';
     }
 }
 
+// Sort playlist by date
 function sortPlaylist(oldToNew) {
     if (!videos || videos.length === 0) {
         alert('No videos to sort');
@@ -361,6 +569,7 @@ function sortPlaylist(oldToNew) {
     displayVideos(videos);
 }
 
+// Display videos in the UI
 function displayVideos(videosToDisplay) {
     const videoList = document.getElementById('video-list');
     videoList.innerHTML = '';
@@ -411,6 +620,7 @@ function displayVideos(videosToDisplay) {
     });
 }
 
+// Sort videos by view count
 function sortByViews() {
     const sortedVideos = [...videos].sort((a, b) => b.viewCount - a.viewCount);
     displayVideos(sortedVideos);
