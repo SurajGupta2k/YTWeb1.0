@@ -12,7 +12,7 @@ export const API_ENDPOINTS = {
 // All our MongoDB stuff lives here
 export const DB_CONFIG = {
     // Connection string to our MongoDB cluster
-    uri: 'mongodb+srv://tempid3738:gh9tnaN5rLz4FIxG@cluster0.mkvbq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0',
+    uri: 'mongodb+srv://
     dbName: 'ytweb',
     // Different collections we're using
     collections: {
