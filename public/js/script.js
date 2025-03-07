@@ -1,6 +1,5 @@
 // This is the main script that handles all YouTube video loading and display
 // It uses YouTube API to fetch videos and show them in a nice grid layout
-// Written by: [Your Name]
 
 // Import configuration
 import { GEMINI_API_KEY, API_ENDPOINTS } from './config.js';
