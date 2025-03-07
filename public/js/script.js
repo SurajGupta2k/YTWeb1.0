@@ -7,11 +7,7 @@ import { GEMINI_API_KEY, API_ENDPOINTS } from './config.js';
 
 // API keys for YouTube - we use multiple keys to handle quota limits
 const apiKeys = [
-    'AIzaSyACa-u0MCCbw5TEU2cw7qTgy4mmKq8_KWI',
-    'AIzaSyARk_biBXGLZEfuMXm2plw9QDmsrSlld0w',
-    'AIzaSyAfAxofftgj_r1LP1KcvTHof94AIgFL1l8',
-    'AIzaSyDFrOkjC18GKf2kkLuagJm_irsNcuCYBRY',
-    'AIzaSyBJPNjjSjSLU0l0Y_rQ0af0Z7elWNNrgbQ'
+    
 ];
 
 // Keep track of which API key we're currently using
