@@ -23,7 +23,6 @@
     "env": {
         "NODE_ENV": "production"
     },
-    "regions": ["all"],
     "headers": [
         {
             "source": "/(.*)",
@@ -48,13 +47,12 @@
         }
     ],
     "rewrites": [
-        { "source": "/", "destination": "/index.html" },
         { "source": "/api/:path*", "destination": "/src/server.js" },
         { "source": "/:path*", "destination": "/index.html" }
     ],
     "cleanUrls": true,
     "trailingSlash": false,
-    "github": {
-        "silent": true
-    }
-}
+    "functions": {
+        "src/server.js": {
+            "memory": 1024,
+            "max
