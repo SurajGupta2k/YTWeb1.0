@@ -1260,7 +1260,7 @@ function displayCategories(categories) {
     // Keep track of the currently open category
     let currentlyOpenCategory = null;
     
-    // Sort categories
+    // Sort categories to put "Other" at the end
     const sortedCategories = Object.entries(categories).sort((a, b) => {
         if (a[0] === "Other") return 1;
         if (b[0] === "Other") return -1;
@@ -1268,87 +1268,130 @@ function displayCategories(categories) {
     });
     
     // Create a section for each category
-    sortedCategories.forEach(([category, videoIndices], index) => {
+    const categoryElements = sortedCategories.map(([category, videoIndices], index) => {
+        const categoryId = `category-${index}`;
         const categorySection = document.createElement('div');
-        categorySection.className = 'mb-4';
+        categorySection.className = 'category-card mb-4 bg-gray-800 rounded-lg overflow-hidden';
         
-        // Simple category header
+        // Category header with count and toggle button
         const categoryHeader = document.createElement('div');
-        categoryHeader.className = 'bg-gray-800 p-3 cursor-pointer hover:bg-gray-700 rounded-lg flex justify-between items-center';
+        categoryHeader.className = 'category-header cursor-pointer bg-gray-700 p-4 hover:bg-gray-600 transition-colors duration-200';
         categoryHeader.innerHTML = `
-            <div class="flex items-center gap-2">
-                <span class="text-white font-medium">${category}</span>
-                <span class="text-gray-400 text-sm">${videoIndices.length} videos</span>
+            <div class="flex items-center justify-between w-full">
+                <div class="flex items-center">
+                    <span class="text-lg font-bold text-white">${category}</span>
+                    <span class="category-count ml-2 text-gray-300">${videoIndices.length} videos</span>
+                </div>
+                <svg class="w-6 h-6 transform transition-transform duration-200 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                </svg>
             </div>
-            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-            </svg>
         `;
         
-        // Videos container
-        const videosContainer = document.createElement('div');
-        videosContainer.className = 'hidden mt-2 space-y-2';
+        // Category videos container (initially hidden)
+        const categoryVideos = document.createElement('div');
+        categoryVideos.id = categoryId;
+        categoryVideos.className = 'category-videos hidden p-4 space-y-3';
         
-        // Add videos to container
-        videoIndices.forEach(index => {
-            if (index >= 0 && index < videos.length) {
-                const video = videos[index];
-                const videoElement = document.createElement('div');
-                videoElement.className = 'bg-gray-700 p-2 rounded hover:bg-gray-600';
-                videoElement.innerHTML = `
-                    <a href="https://www.youtube.com/watch?v=${video.videoId}" 
-                       target="_blank"
-                       class="flex gap-3 items-center">
-                        <img src="https://img.youtube.com/vi/${video.videoId}/default.jpg" 
-                             alt="${video.title}"
-                             class="w-24 rounded"
-                             loading="lazy">
-                        <div class="flex-1">
-                            <h3 class="text-white text-sm">${video.title}</h3>
-                            <span class="text-gray-400 text-xs">${formatViewCount(video.viewCount)} views</span>
-                        </div>
-                    </a>
-                `;
-                videosContainer.appendChild(videoElement);
-            }
-        });
-        
-        // Toggle category
-        categoryHeader.addEventListener('click', () => {
-            const arrow = categoryHeader.querySelector('svg');
-            const isHidden = videosContainer.classList.contains('hidden');
-            
-            // Close currently open category if it's different
-            if (currentlyOpenCategory && currentlyOpenCategory !== videosContainer) {
+        // Function to toggle category
+        const toggleCategory = (shouldOpen = null) => {
+            const isCurrentlyHidden = categoryVideos.classList.contains('hidden');
+            const shouldShow = shouldOpen === null ? isCurrentlyHidden : shouldOpen;
+
+            // If we're opening this category, close the currently open one
+            if (shouldShow && currentlyOpenCategory && currentlyOpenCategory !== categoryVideos) {
+                const openHeader = currentlyOpenCategory.previousElementSibling;
+                const openArrow = openHeader?.querySelector('svg');
+                if (openArrow) openArrow.style.transform = 'rotate(0deg)';
                 currentlyOpenCategory.classList.add('hidden');
-                currentlyOpenCategory.previousElementSibling.querySelector('svg').style.transform = '';
             }
-            
+
             // Toggle current category
-            videosContainer.classList.toggle('hidden');
-            arrow.style.transform = isHidden ? 'rotate(180deg)' : '';
-            currentlyOpenCategory = isHidden ? videosContainer : null;
-            
-            if (isHidden) {
+            categoryVideos.classList.toggle('hidden', !shouldShow);
+            const arrow = categoryHeader.querySelector('svg');
+            arrow.style.transform = shouldShow ? 'rotate(180deg)' : 'rotate(0deg)';
+
+            // Update currently open category
+            currentlyOpenCategory = shouldShow ? categoryVideos : null;
+
+            // Scroll into view if opening
+            if (shouldShow) {
                 categorySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
+        };
+
+        // Add click handler
+        categoryHeader.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleCategory();
+        });
+        
+        // Add videos to the category
+        videoIndices.forEach(index => {
+            if (index < 0 || index >= videos.length) return;
+            const video = videos[index];
+            if (!video) return;
+            
+            const videoElement = document.createElement('div');
+            videoElement.className = 'video-item bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors duration-200 p-3';
+            videoElement.innerHTML = `
+                <div class="flex space-x-3">
+                    <div class="flex-shrink-0 w-32 h-18 overflow-hidden rounded-md">
+                        <img src="https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg" 
+                             alt="${video.title}"
+                             class="w-full h-full object-cover"
+                             loading="lazy">
+                    </div>
+                    <div class="flex-1">
+                        <a href="https://www.youtube.com/watch?v=${video.videoId}" 
+                           target="_blank"
+                           class="text-gray-100 hover:text-youtube transition-colors">
+                            <h3 class="font-medium text-sm line-clamp-2">${video.title}</h3>
+                        </a>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-xs text-gray-400">${video.viewCount.toLocaleString()} views</span>
+                            ${video.isStream ? 
+                                '<span class="text-xs bg-red-900 text-red-100 px-2 py-0.5 rounded-full">Stream</span>' : 
+                                '<span class="text-xs bg-blue-900 text-blue-100 px-2 py-0.5 rounded-full">Video</span>'
+                            }
+                        </div>
+                    </div>
+                </div>
+            `;
+            categoryVideos.appendChild(videoElement);
         });
         
         categorySection.appendChild(categoryHeader);
-        categorySection.appendChild(videosContainer);
-        categoriesContainer.appendChild(categorySection);
+        categorySection.appendChild(categoryVideos);
+        return categorySection;
     });
 
-    // Simple return button
+    // Add all category elements to the container
+    categoryElements.forEach(element => {
+        categoriesContainer.appendChild(element);
+    });
+
+    // Add a button to return to grid view
     const returnButton = document.createElement('button');
-    returnButton.className = 'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg z-50';
-    returnButton.textContent = 'Back to Grid';
+    returnButton.className = 'fixed bottom-4 right-4 bg-youtube hover:bg-youtube-dark text-white px-4 py-2 rounded-lg shadow-lg transition-colors duration-200 text-sm z-50';
+    returnButton.textContent = 'Return to Grid View';
     returnButton.onclick = () => {
         categoriesView.style.display = 'none';
         videoList.style.display = 'grid';
         returnButton.remove();
     };
     document.body.appendChild(returnButton);
+
+    // Add click handler to close categories when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.category-card') && currentlyOpenCategory) {
+            const header = currentlyOpenCategory.previousElementSibling;
+            const arrow = header?.querySelector('svg');
+            if (arrow) arrow.style.transform = 'rotate(0deg)';
+            currentlyOpenCategory.classList.add('hidden');
+            currentlyOpenCategory = null;
+        }
+    });
 }
 
 // Update loading indicator
