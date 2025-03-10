@@ -56,11 +56,5 @@
     "trailingSlash": false,
     "github": {
         "silent": true
-    },
-    "functions": {
-        "src/server.js": {
-            "memory": 1024,
-            "maxDuration": 10
-        }
     }
-} 
+}
