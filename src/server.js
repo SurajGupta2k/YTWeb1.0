@@ -1,3 +1,7 @@
+// Import dotenv for environment variables
+import dotenv from 'dotenv';
+dotenv.config();
+
 // Import the stuff we need
 import express from 'express';
 import path from 'path';

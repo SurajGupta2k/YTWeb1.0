@@ -1,7 +1,5 @@
-// Hey! Here's how to get your Gemini API key:
-// Just head over to https://makersuite.google.com/app/apikey
-// Log in with Google, make a new key, and pop it in below
-export const GEMINI_API_KEY = 'AIzaSyAbPUZqTr7vR0nMrnL2-L_NS-3_sjvcvnY';
+// API configuration that will be populated
+let GEMINI_API_KEY = null;
 
 // Where we'll be making our API calls to
 export const API_ENDPOINTS = {
@@ -11,8 +9,7 @@ export const API_ENDPOINTS = {
 
 // All our MongoDB stuff lives here
 export const DB_CONFIG = {
-    // Connection string to our MongoDB cluster
-    uri: 'mongodb+srv://tempid3738:gh9tnaN5rLz4FIxG@cluster0.mkvbq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0',
+    // Connection string will be used server-side only
     dbName: 'ytweb',
     // Different collections we're using
     collections: {
@@ -28,4 +25,22 @@ export const DB_CONFIG = {
         categories: 48,  // hours
         playlists: 24   // hours
     }
-}; 
+};
+
+// Function to initialize configuration
+export async function initConfig() {
+    try {
+        const response = await fetch('/api/config');
+        const config = await response.json();
+        GEMINI_API_KEY = config.geminiApiKey;
+        return config;
+    } catch (error) {
+        console.error('Error loading configuration:', error);
+        throw error;
+    }
+}
+
+// Export the Gemini API key getter
+export function getGeminiApiKey() {
+    return GEMINI_API_KEY;
+} 

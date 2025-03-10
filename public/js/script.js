@@ -3,16 +3,10 @@
 // Written by: [Your Name]
 
 // Import configuration
-import { GEMINI_API_KEY, API_ENDPOINTS } from './config.js';
+import { getGeminiApiKey, API_ENDPOINTS, initConfig } from './config.js';
 
 // API keys for YouTube - we use multiple keys to handle quota limits
-const apiKeys = [
-    'AIzaSyACa-u0MCCbw5TEU2cw7qTgy4mmKq8_KWI',
-    'AIzaSyARk_biBXGLZEfuMXm2plw9QDmsrSlld0w',
-    'AIzaSyAfAxofftgj_r1LP1KcvTHof94AIgFL1l8',
-    'AIzaSyDFrOkjC18GKf2kkLuagJm_irsNcuCYBRY',
-    'AIzaSyBJPNjjSjSLU0l0Y_rQ0af0Z7elWNNrgbQ'
-];
+let apiKeys = [];
 
 // Keep track of which API key we're currently using
 let currentApiKeyIndex = 0;
@@ -97,16 +91,28 @@ async function cacheData(key, data, collection = 'videos') {
 
 // Get current API key from the rotation
 function getCurrentApiKey() {
-    return apiKeys[currentApiKeyIndex];
+    return apiKeys[0]; // Always use the first key as it's the current one
 }
 
 // Rotate to next API key when quota is exceeded
-function rotateApiKey() {
-    const previousIndex = currentApiKeyIndex;
-    currentApiKeyIndex = (currentApiKeyIndex + 1) % apiKeys.length;
-    // Log rotation without exposing keys
-    console.log(`API key rotated: ${previousIndex + 1} → ${currentApiKeyIndex + 1}`);
-    return getCurrentApiKey();
+async function rotateApiKey() {
+    try {
+        const response = await fetch('/api/rotate-key', {
+            method: 'POST'
+        });
+        const data = await response.json();
+        
+        if (data.keyRotated) {
+            apiKeys = data.youtubeApiKeys; // Update the local keys array with the new rotation
+            console.log('API key rotated successfully');
+            return getCurrentApiKey();
+        } else {
+            throw new Error('Failed to rotate API key');
+        }
+    } catch (error) {
+        console.error('Error rotating API key:', error);
+        throw error;
+    }
 }
 
 // Track API usage and errors
@@ -121,17 +127,20 @@ const apiUsage = {
 async function handleApiError(error, retryFunction, ...args) {
     apiUsage.errors++;
     
-    if (error.message.includes('quota')) {
+    if (error.message.includes('quota') || 
+        (error.response && error.response.status === 403) || 
+        error.message.includes('quotaExceeded')) {
+        
         apiUsage.quotaExceeded++;
         apiUsage.lastRotation = new Date();
         
-        if (apiUsage.quotaExceeded >= apiKeys.length) {
+        try {
+            await rotateApiKey();
+            return retryFunction(...args);
+        } catch (rotationError) {
+            console.error('Failed to rotate API key:', rotationError);
             throw new Error('All API keys have exceeded their quota. Please try again later.');
         }
-        
-        console.log(`API quota exceeded. Rotating keys (${apiUsage.quotaExceeded}/${apiKeys.length})`);
-        rotateApiKey();
-        return retryFunction(...args);
     }
     
     throw error;
@@ -175,10 +184,15 @@ function initYouTubeAPI() {
 // Initialize when the page loads
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        // Load configuration first
+        const config = await initConfig();
+        apiKeys = config.youtubeApiKeys;
+        
         await initYouTubeAPI();
         setupEventListeners();
     } catch (error) {
         console.error('Failed to initialize:', error);
+        alert('Failed to initialize the application. Please try again later.');
     }
 });
 
@@ -978,7 +992,7 @@ function sortByViews() {
 // Function to check available Gemini models
 async function checkAvailableModels() {
     try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${GEMINI_API_KEY}`);
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${getCurrentApiKey()}`);
         const data = await response.json();
         console.log('Available Models:', data);
         return data.models || [];
@@ -1073,128 +1087,121 @@ ${videoTitles}
 Respond with ONLY the JSON object, no additional text.`;
 
             console.log('[Categorize] Sending prompt to Gemini API');
-            console.log('[Categorize] API Key:', GEMINI_API_KEY ? 'Present' : 'Missing');
-            console.log('[Categorize] API Endpoint:', `${API_ENDPOINTS.GEMINI_BASE}/models/gemini-1.5-flash:generateContent`);
+            const geminiApiKey = getGeminiApiKey();
+            if (!geminiApiKey) {
+                throw new Error('Gemini API key is not available. Please try again later.');
+            }
             
-            if (!GEMINI_API_KEY) {
-                throw new Error('Gemini API key is missing. Please add your API key to config.js');
+            const response = await fetch(`${API_ENDPOINTS.GEMINI_BASE}/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [{
+                            text: analysisPrompt
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.1,
+                        topK: 32,
+                        topP: 0.9,
+                        maxOutputTokens: 2048
+                    }
+                })
+            });
+
+            console.log('[Categorize] API Response Status:', response.status);
+            const responseData = await response.text();
+            console.log('[Categorize] Raw API Response:', responseData);
+
+            if (!response.ok) {
+                let errorMessage = `API request failed with status ${response.status}`;
+                try {
+                    const errorJson = JSON.parse(responseData);
+                    if (errorJson.error) {
+                        errorMessage += `: ${errorJson.error.message || errorJson.error}`;
+                    }
+                } catch (e) {
+                    // If we can't parse the error as JSON, use the raw response
+                    errorMessage += `: ${responseData}`;
+                }
+                throw new Error(errorMessage);
             }
 
+            const data = JSON.parse(responseData);
+            console.log('[Categorize] Received response from Gemini API:', data);
+            
+            if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                throw new Error('Invalid response structure from API');
+            }
+
+            const responseText = data.candidates[0].content.parts[0].text;
+            console.log('[Categorize] Raw response text:', responseText);
+
+            // Enhanced response cleaning
+            let cleanedText = responseText.trim();
+            
+            // Remove markdown code blocks if present
+            cleanedText = cleanedText.replace(/```json\n?|\n?```/g, '');
+            
+            // Find the first { and last } to extract just the JSON object
+            const startIndex = cleanedText.indexOf('{');
+            const endIndex = cleanedText.lastIndexOf('}');
+            
+            if (startIndex === -1 || endIndex === -1) {
+                console.error('[Categorize] No valid JSON object found in response');
+                throw new Error('Invalid response format from API');
+            }
+            
+            cleanedText = cleanedText.substring(startIndex, endIndex + 1);
+            
+            // Remove any non-printable characters
+            cleanedText = cleanedText.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+            
+            console.log('[Categorize] Cleaned response text:', cleanedText);
+
+            let batchCategories;
             try {
-                const response = await fetch(`${API_ENDPOINTS.GEMINI_BASE}/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        contents: [{
-                            parts: [{
-                                text: analysisPrompt
-                            }]
-                        }],
-                        generationConfig: {
-                            temperature: 0.1,
-                            topK: 32,
-                            topP: 0.9,
-                            maxOutputTokens: 2048
-                        }
-                    })
-                });
+                batchCategories = JSON.parse(cleanedText);
+            } catch (parseError) {
+                console.error('[Categorize] JSON parse error:', parseError);
+                console.error('[Categorize] Failed text:', cleanedText);
+                throw new Error(`Failed to parse API response: ${parseError.message}`);
+            }
 
-                console.log('[Categorize] API Response Status:', response.status);
-                const responseData = await response.text();
-                console.log('[Categorize] Raw API Response:', responseData);
+            if (!batchCategories || typeof batchCategories !== 'object' || Object.keys(batchCategories).length === 0) {
+                console.error('[Categorize] Invalid categories object:', batchCategories);
+                throw new Error('Invalid categories received from API');
+            }
 
-                if (!response.ok) {
-                    let errorMessage = `API request failed with status ${response.status}`;
-                    try {
-                        const errorJson = JSON.parse(responseData);
-                        if (errorJson.error) {
-                            errorMessage += `: ${errorJson.error.message || errorJson.error}`;
-                        }
-                    } catch (e) {
-                        // If we can't parse the error as JSON, use the raw response
-                        errorMessage += `: ${responseData}`;
-                    }
-                    throw new Error(errorMessage);
+            // Merge batch categories with validation
+            Object.entries(batchCategories).forEach(([category, indices]) => {
+                if (!Array.isArray(indices)) {
+                    console.error(`Invalid indices for category ${category}:`, indices);
+                    return;
                 }
 
-                const data = JSON.parse(responseData);
-                console.log('[Categorize] Received response from Gemini API:', data);
-                
-                if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
-                    throw new Error('Invalid response structure from API');
+                // Validate indices
+                const validIndices = indices.filter(index => 
+                    typeof index === 'number' && 
+                    Number.isInteger(index) && 
+                    index >= 0 && 
+                    index < batchVideos.length
+                );
+
+                if (!allCategories[category]) {
+                    allCategories[category] = [];
                 }
+                // Adjust indices for the current batch
+                const adjustedIndices = validIndices.map(index => index + start);
+                allCategories[category] = allCategories[category].concat(adjustedIndices);
+            });
 
-                const responseText = data.candidates[0].content.parts[0].text;
-                console.log('[Categorize] Raw response text:', responseText);
-
-                // Enhanced response cleaning
-                let cleanedText = responseText.trim();
-                
-                // Remove markdown code blocks if present
-                cleanedText = cleanedText.replace(/```json\n?|\n?```/g, '');
-                
-                // Find the first { and last } to extract just the JSON object
-                const startIndex = cleanedText.indexOf('{');
-                const endIndex = cleanedText.lastIndexOf('}');
-                
-                if (startIndex === -1 || endIndex === -1) {
-                    console.error('[Categorize] No valid JSON object found in response');
-                    throw new Error('Invalid response format from API');
-                }
-                
-                cleanedText = cleanedText.substring(startIndex, endIndex + 1);
-                
-                // Remove any non-printable characters
-                cleanedText = cleanedText.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
-                
-                console.log('[Categorize] Cleaned response text:', cleanedText);
-
-                let batchCategories;
-                try {
-                    batchCategories = JSON.parse(cleanedText);
-                } catch (parseError) {
-                    console.error('[Categorize] JSON parse error:', parseError);
-                    console.error('[Categorize] Failed text:', cleanedText);
-                    throw new Error(`Failed to parse API response: ${parseError.message}`);
-                }
-
-                if (!batchCategories || typeof batchCategories !== 'object' || Object.keys(batchCategories).length === 0) {
-                    console.error('[Categorize] Invalid categories object:', batchCategories);
-                    throw new Error('Invalid categories received from API');
-                }
-
-                // Merge batch categories with validation
-                Object.entries(batchCategories).forEach(([category, indices]) => {
-                    if (!Array.isArray(indices)) {
-                        console.error(`Invalid indices for category ${category}:`, indices);
-                        return;
-                    }
-
-                    // Validate indices
-                    const validIndices = indices.filter(index => 
-                        typeof index === 'number' && 
-                        Number.isInteger(index) && 
-                        index >= 0 && 
-                        index < batchVideos.length
-                    );
-
-                    if (!allCategories[category]) {
-                        allCategories[category] = [];
-                    }
-                    // Adjust indices for the current batch
-                    const adjustedIndices = validIndices.map(index => index + start);
-                    allCategories[category] = allCategories[category].concat(adjustedIndices);
-                });
-
-                // Add delay between batches to avoid rate limiting
-                if (batchIndex < totalBatches - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                }
-            } catch (error) {
-                console.error('[Categorize] Error:', error);
-                throw error;
+            // Add delay between batches to avoid rate limiting
+            if (batchIndex < totalBatches - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
             }
         }
 
@@ -1249,8 +1256,11 @@ function displayCategories(categories) {
     videoList.style.display = 'none';
     categoriesView.style.display = 'block';
     categoriesContainer.innerHTML = '';
+
+    // Keep track of the currently open category
+    let currentlyOpenCategory = null;
     
-    // Sort categories to put "Other" at the end
+    // Sort categories
     const sortedCategories = Object.entries(categories).sort((a, b) => {
         if (a[0] === "Other") return 1;
         if (b[0] === "Other") return -1;
@@ -1258,79 +1268,81 @@ function displayCategories(categories) {
     });
     
     // Create a section for each category
-    sortedCategories.forEach(([category, videoIndices]) => {
+    sortedCategories.forEach(([category, videoIndices], index) => {
         const categorySection = document.createElement('div');
-        categorySection.className = 'category-card mb-4';
+        categorySection.className = 'mb-4';
         
-        // Category header with count and toggle button
+        // Simple category header
         const categoryHeader = document.createElement('div');
-        categoryHeader.className = 'category-header cursor-pointer';
+        categoryHeader.className = 'bg-gray-800 p-3 cursor-pointer hover:bg-gray-700 rounded-lg flex justify-between items-center';
         categoryHeader.innerHTML = `
-            <div class="flex items-center justify-between w-full">
-                <div class="flex items-center">
-                    <span class="text-lg font-bold">${category}</span>
-                    <span class="category-count ml-2">${videoIndices.length} videos</span>
-                </div>
-                <svg class="w-6 h-6 transform transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-                </svg>
+            <div class="flex items-center gap-2">
+                <span class="text-white font-medium">${category}</span>
+                <span class="text-gray-400 text-sm">${videoIndices.length} videos</span>
             </div>
+            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
         `;
         
-        // Category videos container (initially hidden)
-        const categoryVideos = document.createElement('div');
-        categoryVideos.className = 'category-videos hidden mt-4 space-y-3';
+        // Videos container
+        const videosContainer = document.createElement('div');
+        videosContainer.className = 'hidden mt-2 space-y-2';
         
-        // Add click handler to toggle visibility
-        categoryHeader.addEventListener('click', () => {
-            categoryVideos.classList.toggle('hidden');
-            const arrow = categoryHeader.querySelector('svg');
-            arrow.style.transform = categoryVideos.classList.contains('hidden') ? 'rotate(0deg)' : 'rotate(180deg)';
+        // Add videos to container
+        videoIndices.forEach(index => {
+            if (index >= 0 && index < videos.length) {
+                const video = videos[index];
+                const videoElement = document.createElement('div');
+                videoElement.className = 'bg-gray-700 p-2 rounded hover:bg-gray-600';
+                videoElement.innerHTML = `
+                    <a href="https://www.youtube.com/watch?v=${video.videoId}" 
+                       target="_blank"
+                       class="flex gap-3 items-center">
+                        <img src="https://img.youtube.com/vi/${video.videoId}/default.jpg" 
+                             alt="${video.title}"
+                             class="w-24 rounded"
+                             loading="lazy">
+                        <div class="flex-1">
+                            <h3 class="text-white text-sm">${video.title}</h3>
+                            <span class="text-gray-400 text-xs">${formatViewCount(video.viewCount)} views</span>
+                        </div>
+                    </a>
+                `;
+                videosContainer.appendChild(videoElement);
+            }
         });
         
-        // Add videos to the category
-        videoIndices.forEach(index => {
-            if (index < 0 || index >= videos.length) return;
-            const video = videos[index];
-            if (!video) return;
+        // Toggle category
+        categoryHeader.addEventListener('click', () => {
+            const arrow = categoryHeader.querySelector('svg');
+            const isHidden = videosContainer.classList.contains('hidden');
             
-            const videoElement = document.createElement('div');
-            videoElement.className = 'video-item bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 p-3';
-            videoElement.innerHTML = `
-                <div class="flex space-x-3">
-                    <div class="flex-shrink-0 w-32 h-18 overflow-hidden rounded-md">
-                        <img src="https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg" 
-                             alt="${video.title}"
-                             class="w-full h-full object-cover">
-                    </div>
-                    <div class="flex-1">
-                        <a href="https://www.youtube.com/watch?v=${video.videoId}" 
-                           target="_blank"
-                           class="hover:text-youtube transition-colors">
-                            <h3 class="font-medium text-sm line-clamp-2">${video.title}</h3>
-                        </a>
-                        <div class="flex items-center gap-2 mt-1">
-                            <span class="text-xs text-gray-600">${video.viewCount.toLocaleString()} views</span>
-                            ${video.isStream ? 
-                                '<span class="text-xs bg-red-100 text-red-800 px-2 py-0.5 rounded-full">Stream</span>' : 
-                                '<span class="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Video</span>'
-                            }
-                        </div>
-                    </div>
-                </div>
-            `;
-            categoryVideos.appendChild(videoElement);
+            // Close currently open category if it's different
+            if (currentlyOpenCategory && currentlyOpenCategory !== videosContainer) {
+                currentlyOpenCategory.classList.add('hidden');
+                currentlyOpenCategory.previousElementSibling.querySelector('svg').style.transform = '';
+            }
+            
+            // Toggle current category
+            videosContainer.classList.toggle('hidden');
+            arrow.style.transform = isHidden ? 'rotate(180deg)' : '';
+            currentlyOpenCategory = isHidden ? videosContainer : null;
+            
+            if (isHidden) {
+                categorySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
         });
         
         categorySection.appendChild(categoryHeader);
-        categorySection.appendChild(categoryVideos);
+        categorySection.appendChild(videosContainer);
         categoriesContainer.appendChild(categorySection);
     });
 
-    // Add a button to return to grid view
+    // Simple return button
     const returnButton = document.createElement('button');
-    returnButton.className = 'fixed bottom-4 right-4 bg-youtube hover:bg-youtube-dark text-white px-4 py-2 rounded-lg shadow-lg transition-colors duration-200 text-sm';
-    returnButton.textContent = 'Return to Grid View';
+    returnButton.className = 'fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg z-50';
+    returnButton.textContent = 'Back to Grid';
     returnButton.onclick = () => {
         categoriesView.style.display = 'none';
         videoList.style.display = 'grid';
