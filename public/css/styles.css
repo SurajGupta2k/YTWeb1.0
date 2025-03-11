@@ -472,3 +472,37 @@ input, button {
 #clear-input:hover {
     opacity: 1;
 }
+
+/* Header styles */
+#app > div:first-child {
+    padding-top: 1rem;
+    margin-bottom: 2rem;
+}
+
+#app > div:first-child .text-center {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+#theme-toggle {
+    z-index: 10;
+}
+
+@media (max-width: 640px) {
+    #app > div:first-child {
+        padding-top: 0.5rem;
+    }
+    
+    #app > div:first-child .text-center {
+        padding: 0 1rem;
+    }
+    
+    #app > div:first-child h1 {
+        font-size: 2rem;
+    }
+    
+    #app > div:first-child p {
+        font-size: 0.875rem;
+    }
+}
