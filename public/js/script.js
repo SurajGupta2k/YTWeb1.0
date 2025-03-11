@@ -876,7 +876,32 @@ function sortPlaylist(oldToNew) {
     displayVideos(videos);
 }
 
-// Display videos in the UI
+// Add this function near the top after your imports
+function createVideoPlayer(videoId, container) {
+    const player = new YT.Player(container, {
+        height: '100%',
+        width: '100%',
+        videoId: videoId,
+        playerVars: {
+            'autoplay': 1,
+            'controls': 1,
+            'rel': 0,
+            'showinfo': 0,
+            'modestbranding': 1
+        }
+    });
+    return player;
+}
+
+// Add this to handle video overlay closing
+function closeVideoOverlay(overlayId) {
+    const overlay = document.getElementById(overlayId);
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+// Modify your displayVideos function to include the play button and video overlay
 function displayVideos(videosToDisplay) {
     const videoList = document.getElementById('video-list');
     videoList.innerHTML = '';
@@ -900,7 +925,7 @@ function displayVideos(videosToDisplay) {
     // Remove loading states and display actual videos after a short delay
     setTimeout(() => {
         videoList.innerHTML = '';
-        videosToDisplay.forEach(video => {
+        videosToDisplay.forEach((video, index) => {
             const li = document.createElement('li');
             const publishDate = video.actualStartTime ? 
                 (video.actualStartTime instanceof Date ? video.actualStartTime : new Date(video.actualStartTime)) :
@@ -916,20 +941,28 @@ function displayVideos(videosToDisplay) {
             
             li.innerHTML = `
                 <div class="video-card">
-                    <a href="https://www.youtube.com/watch?v=${video.videoId}" target="_blank" 
-                       class="block relative aspect-video overflow-hidden rounded-t-xl">
+                    <div class="relative aspect-video overflow-hidden rounded-t-xl group">
                         <img src="https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg" 
                              alt="${video.title}"
                              class="w-full h-full object-cover"
                              loading="lazy">
+                        <button class="play-button absolute top-2 right-2 bg-youtube hover:bg-youtube-dark text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                                onclick="event.preventDefault(); event.stopPropagation();"
+                                data-video-id="${video.videoId}">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </button>
                         <div class="absolute bottom-2 right-2 bg-black bg-opacity-75 text-white text-xs px-2 py-1 rounded-md">
                             ${formatViewCount(video.viewCount)}
                         </div>
-                    </a>
+                    </div>
                     <div class="video-info">
                         <h3>
-                            <a href="https://www.youtube.com/watch?v=${video.videoId}" target="_blank" 
-                               class="video-title hover:text-youtube transition-colors duration-200">
+                            <a href="#" 
+                               class="video-title hover:text-youtube transition-colors duration-200"
+                               onclick="event.preventDefault();">
                                 ${video.title}
                             </a>
                         </h3>
@@ -950,6 +983,44 @@ function displayVideos(videosToDisplay) {
                     </div>
                 </div>
             `;
+
+            // Add click event listener for the play button
+            const playButton = li.querySelector('.play-button');
+            playButton.addEventListener('click', () => {
+                const overlayId = `video-overlay-${video.videoId}`;
+                const existingOverlay = document.getElementById(overlayId);
+                if (existingOverlay) {
+                    existingOverlay.remove();
+                    return;
+                }
+
+                const overlay = document.createElement('div');
+                overlay.id = overlayId;
+                overlay.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+                overlay.innerHTML = `
+                    <div class="relative w-full max-w-4xl mx-4">
+                        <button class="absolute -top-10 right-0 text-white hover:text-youtube p-2" onclick="closeVideoOverlay('${overlayId}')">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                        <div class="relative pt-[56.25%]">
+                            <div id="player-${video.videoId}" class="absolute inset-0"></div>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(overlay);
+                createVideoPlayer(video.videoId, `player-${video.videoId}`);
+
+                // Close overlay when clicking outside the video
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) {
+                        closeVideoOverlay(overlayId);
+                    }
+                });
+            });
+
             videoList.appendChild(li);
         });
     }, 500);
