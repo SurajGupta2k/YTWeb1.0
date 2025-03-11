@@ -893,8 +893,8 @@ function createVideoPlayer(videoId, container) {
     return player;
 }
 
-// Add this to handle video overlay closing
-function closeVideoOverlay(overlayId) {
+// Make closeVideoOverlay function globally accessible
+window.closeVideoOverlay = function(overlayId) {
     const overlay = document.getElementById(overlayId);
     if (overlay) {
         // Find the player iframe
@@ -912,9 +912,9 @@ function closeVideoOverlay(overlayId) {
         // Remove the overlay
         overlay.remove();
     }
-}
+};
 
-// Modify your displayVideos function to include the updated overlay handling
+// Update the video overlay creation in displayVideos function
 function displayVideos(videosToDisplay) {
     const videoList = document.getElementById('video-list');
     videoList.innerHTML = '';
@@ -999,11 +999,14 @@ function displayVideos(videosToDisplay) {
 
             // Add click event listener for the play button
             const playButton = li.querySelector('.play-button');
-            playButton.addEventListener('click', () => {
+            playButton.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                
                 const overlayId = `video-overlay-${video.videoId}`;
                 const existingOverlay = document.getElementById(overlayId);
                 if (existingOverlay) {
-                    closeVideoOverlay(overlayId);
+                    window.closeVideoOverlay(overlayId);
                     return;
                 }
 
@@ -1012,7 +1015,7 @@ function displayVideos(videosToDisplay) {
                 overlay.className = 'video-overlay';
                 overlay.innerHTML = `
                     <div class="video-overlay-content">
-                        <button class="video-overlay-close" onclick="closeVideoOverlay('${overlayId}')">
+                        <button class="video-overlay-close" onclick="window.closeVideoOverlay('${overlayId}')">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
@@ -1024,12 +1027,16 @@ function displayVideos(videosToDisplay) {
                 `;
 
                 document.body.appendChild(overlay);
-                createVideoPlayer(video.videoId, `player-${video.videoId}`);
+                
+                // Initialize YouTube player after a short delay to ensure container is ready
+                setTimeout(() => {
+                    createVideoPlayer(video.videoId, `player-${video.videoId}`);
+                }, 100);
 
                 // Close overlay when clicking outside the video
                 overlay.addEventListener('click', (e) => {
                     if (e.target === overlay) {
-                        closeVideoOverlay(overlayId);
+                        window.closeVideoOverlay(overlayId);
                     }
                 });
 
@@ -1041,7 +1048,7 @@ function displayVideos(videosToDisplay) {
                 // Handle escape key to close overlay
                 const handleEscape = (e) => {
                     if (e.key === 'Escape') {
-                        closeVideoOverlay(overlayId);
+                        window.closeVideoOverlay(overlayId);
                         document.removeEventListener('keydown', handleEscape);
                     }
                 };
