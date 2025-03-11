@@ -389,3 +389,55 @@ input, button {
 .theme-transition {
     @apply transition-colors duration-200;
 }
+
+/* Add these styles to your existing CSS */
+.search-input {
+    width: 100%;
+    padding: 0.75rem 2.5rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #ffffff;
+    background-color: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #ef4444;
+    box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.search-input::placeholder {
+    color: #9ca3af;
+}
+
+/* Remove default autocomplete styles */
+.search-input:-webkit-autofill,
+.search-input:-webkit-autofill:hover,
+.search-input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #ffffff;
+    -webkit-box-shadow: 0 0 0px 1000px #1f2937 inset;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Remove datalist dropdown arrow in Chrome */
+.search-input::-webkit-calendar-picker-indicator {
+    display: none !important;
+}
+
+/* Remove datalist dropdown arrow in Firefox */
+.search-input::-moz-list-bullet {
+    display: none !important;
+}
+
+#clear-input {
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+#clear-input:hover {
+    opacity: 1;
+}
