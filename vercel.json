@@ -1,29 +1,8 @@
 {
-    "version": 2,
-    "builds": [
-        {
-            "src": "src/server.js",
-            "use": "@vercel/node"
-        },
-        {
-            "src": "public/**",
-            "use": "@vercel/static"
-        }
-    ],
     "rewrites": [
-        { "source": "/api/:path*", "destination": "/src/server.js" },
-        { "source": "/((?!api/.*).*)", "destination": "/public/index.html" }
-    ],
-    "headers": [
-        {
-            "source": "/(.*)",
-            "headers": [
-                { "key": "Access-Control-Allow-Origin", "value": "*" },
-                { "key": "Access-Control-Allow-Methods", "value": "GET,HEAD,PUT,PATCH,POST,DELETE" },
-                { "key": "Access-Control-Allow-Headers", "value": "Origin, X-Requested-With, Content-Type, Accept" }
-            ]
-        }
-    ],
-    "cleanUrls": true,
-    "trailingSlash": false
-}
+      {
+        "source": "/(.*)",
+        "destination": "/index.html"
+      }
+    ]
+  } 
