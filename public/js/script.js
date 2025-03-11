@@ -876,43 +876,33 @@ function sortPlaylist(oldToNew) {
     displayVideos(videos);
 }
 
-// Add this function near the top after your imports
-function createVideoPlayer(videoId, container) {
-    const player = new YT.Player(container, {
-        height: '100%',
-        width: '100%',
-        videoId: videoId,
-        playerVars: {
-            'autoplay': 1,
-            'controls': 1,
-            'rel': 0,
-            'showinfo': 0,
-            'modestbranding': 1
+// Global variable to store active YouTube player
+let activePlayer = null;
+
+// Function to close video overlay
+function closeVideoOverlay(overlayId) {
+    const overlay = document.getElementById(overlayId);
+    if (!overlay) return;
+
+    // Get the player container ID
+    const playerId = overlayId.replace('video-overlay-', 'player-');
+    
+    // Destroy the YouTube player if it exists
+    if (activePlayer) {
+        try {
+            activePlayer.destroy();
+        } catch (e) {
+            console.error('Error destroying player:', e);
         }
-    });
-    return player;
+        activePlayer = null;
+    }
+    
+    // Remove the overlay
+    overlay.remove();
 }
 
-// Make closeVideoOverlay function globally accessible
-window.closeVideoOverlay = function(overlayId) {
-    const overlay = document.getElementById(overlayId);
-    if (overlay) {
-        // Find the player iframe
-        const playerId = overlayId.replace('video-overlay-', 'player-');
-        const playerFrame = document.getElementById(playerId);
-        
-        // If there's a YouTube player instance, destroy it first
-        if (window.YT && window.YT.Player && playerFrame) {
-            const player = YT.get(playerId);
-            if (player) {
-                player.destroy();
-            }
-        }
-        
-        // Remove the overlay
-        overlay.remove();
-    }
-};
+// Make closeVideoOverlay globally accessible
+window.closeVideoOverlay = closeVideoOverlay;
 
 // Update the video overlay creation in displayVideos function
 function displayVideos(videosToDisplay) {
@@ -1006,7 +996,7 @@ function displayVideos(videosToDisplay) {
                 const overlayId = `video-overlay-${video.videoId}`;
                 const existingOverlay = document.getElementById(overlayId);
                 if (existingOverlay) {
-                    window.closeVideoOverlay(overlayId);
+                    closeVideoOverlay(overlayId);
                     return;
                 }
 
@@ -1015,7 +1005,7 @@ function displayVideos(videosToDisplay) {
                 overlay.className = 'video-overlay';
                 overlay.innerHTML = `
                     <div class="video-overlay-content">
-                        <button class="video-overlay-close" onclick="window.closeVideoOverlay('${overlayId}')">
+                        <button class="video-overlay-close" onclick="closeVideoOverlay('${overlayId}')">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
@@ -1028,15 +1018,26 @@ function displayVideos(videosToDisplay) {
 
                 document.body.appendChild(overlay);
                 
-                // Initialize YouTube player after a short delay to ensure container is ready
+                // Initialize YouTube player after a short delay
                 setTimeout(() => {
-                    createVideoPlayer(video.videoId, `player-${video.videoId}`);
+                    activePlayer = new YT.Player(`player-${video.videoId}`, {
+                        height: '100%',
+                        width: '100%',
+                        videoId: video.videoId,
+                        playerVars: {
+                            'autoplay': 1,
+                            'controls': 1,
+                            'rel': 0,
+                            'showinfo': 0,
+                            'modestbranding': 1
+                        }
+                    });
                 }, 100);
 
                 // Close overlay when clicking outside the video
                 overlay.addEventListener('click', (e) => {
                     if (e.target === overlay) {
-                        window.closeVideoOverlay(overlayId);
+                        closeVideoOverlay(overlayId);
                     }
                 });
 
@@ -1048,7 +1049,7 @@ function displayVideos(videosToDisplay) {
                 // Handle escape key to close overlay
                 const handleEscape = (e) => {
                     if (e.key === 'Escape') {
-                        window.closeVideoOverlay(overlayId);
+                        closeVideoOverlay(overlayId);
                         document.removeEventListener('keydown', handleEscape);
                     }
                 };
