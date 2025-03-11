@@ -1444,16 +1444,97 @@ function updateLoadingStatus(message, isCache = false, isGemini = false, isSucce
 function setupInputClear() {
     const input = document.getElementById('playlist-url');
     const clearButton = document.getElementById('clear-input');
+    const suggestionsContainer = document.getElementById('channel-suggestions');
 
     // Show/hide clear button based on input content
-    input.addEventListener('input', () => {
+    input.addEventListener('input', (e) => {
         clearButton.classList.toggle('hidden', !input.value);
+        
+        // Handle channel suggestions
+        clearTimeout(searchTimeout);
+        const query = e.target.value.trim();
+        
+        if (query && !query.includes('youtube.com') && !query.includes('youtu.be')) {
+            searchTimeout = setTimeout(() => {
+                handleChannelSuggestions(query);
+            }, 300); // Debounce for 300ms
+        } else {
+            suggestionsContainer.classList.add('hidden');
+        }
     });
 
     // Clear input when X is clicked
     clearButton.addEventListener('click', () => {
         input.value = '';
         clearButton.classList.add('hidden');
+        suggestionsContainer.classList.add('hidden');
         input.focus();
     });
+
+    // Hide suggestions when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+            suggestionsContainer.classList.add('hidden');
+        }
+    });
+}
+
+let searchTimeout = null;
+
+// Function to handle channel suggestions
+async function handleChannelSuggestions(query) {
+    if (!query || query.includes('youtube.com')) return;
+    
+    try {
+        const response = await fetch(
+            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=5&q=${encodeURIComponent(query)}&key=${getCurrentApiKey()}`
+        );
+        const data = await response.json();
+        
+        if (!response.ok) {
+            if (data.error?.message?.includes('quota')) {
+                throw new Error('quota exceeded');
+            }
+            throw new Error(data.error?.message || 'Failed to fetch suggestions');
+        }
+
+        const suggestionsContainer = document.getElementById('channel-suggestions');
+        suggestionsContainer.innerHTML = '';
+
+        if (data.items && data.items.length > 0) {
+            data.items.forEach(item => {
+                const suggestionDiv = document.createElement('div');
+                suggestionDiv.className = 'channel-suggestion p-3 hover:bg-gray-700 cursor-pointer flex items-center gap-3 transition-colors duration-200';
+                suggestionDiv.innerHTML = `
+                    <img src="${item.snippet.thumbnails.default.url}" 
+                         alt="${item.snippet.title}" 
+                         class="w-10 h-10 rounded-full">
+                    <div class="flex-1">
+                        <div class="text-white font-medium">${item.snippet.title}</div>
+                        <div class="text-gray-400 text-sm">@${item.snippet.customUrl || item.snippet.channelTitle}</div>
+                    </div>
+                `;
+                
+                // Add click handler
+                suggestionDiv.addEventListener('click', () => {
+                    const urlInput = document.getElementById('playlist-url');
+                    urlInput.value = `https://youtube.com/channel/${item.id.channelId}`;
+                    suggestionsContainer.classList.add('hidden');
+                    loadContent(); // Automatically load the channel
+                });
+                
+                suggestionsContainer.appendChild(suggestionDiv);
+            });
+            
+            suggestionsContainer.classList.remove('hidden');
+        } else {
+            suggestionsContainer.classList.add('hidden');
+        }
+    } catch (error) {
+        console.error('Error fetching suggestions:', error);
+        if (error.message.includes('quota')) {
+            await rotateApiKey();
+            handleChannelSuggestions(query);
+        }
+    }
 }
