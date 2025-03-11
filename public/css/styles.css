@@ -1,3 +1,34 @@
+/* Add these styles at the top of your CSS file */
+.header-title {
+    text-align: center;
+    width: 100%;
+    position: relative;
+}
+
+#app .mb-6.text-center {
+    position: relative;
+    padding-top: 1rem;
+}
+
+#app .mb-6.text-center .flex-1 {
+    margin: 0 auto;
+    max-width: 600px;
+}
+
+@media (max-width: 640px) {
+    #app .mb-6.text-center {
+        padding-top: 0.5rem;
+    }
+    
+    #app .mb-6.text-center h1 {
+        font-size: 2rem;
+    }
+    
+    #app .mb-6.text-center p {
+        font-size: 0.875rem;
+    }
+}
+
 .video-item {
     @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02];
 }
