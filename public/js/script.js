@@ -1517,9 +1517,20 @@ function setupInputClear() {
     const clearButton = document.getElementById('clear-input');
 
     // Show/hide clear button based on input content
-    input.addEventListener('input', () => {
-        clearButton.classList.toggle('hidden', !input.value);
-    });
+    const toggleClearButton = () => {
+        if (input.value) {
+            clearButton.classList.remove('hidden');
+        } else {
+            clearButton.classList.add('hidden');
+        }
+    };
+
+    // Initial state
+    toggleClearButton();
+
+    // Add event listeners
+    input.addEventListener('input', toggleClearButton);
+    input.addEventListener('change', toggleClearButton);
 
     // Clear input when X is clicked
     clearButton.addEventListener('click', () => {

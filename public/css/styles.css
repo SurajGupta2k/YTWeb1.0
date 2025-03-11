@@ -422,6 +422,11 @@ input, button {
 }
 
 /* Add these styles to your existing CSS */
+.search-container {
+    position: relative;
+    width: 100%;
+}
+
 .search-input {
     width: 100%;
     padding: 0.75rem 2.5rem;
@@ -432,6 +437,7 @@ input, button {
     border: 1px solid #374151;
     border-radius: 0.5rem;
     transition: all 0.2s;
+    padding-right: 2.5rem; /* Make room for the clear button */
 }
 
 .search-input:focus {
@@ -464,13 +470,37 @@ input, button {
 }
 
 #clear-input {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
     cursor: pointer;
-    opacity: 0.7;
-    transition: opacity 0.2s;
+    padding: 4px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: all 0.2s ease;
+    z-index: 20;
 }
 
 #clear-input:hover {
-    opacity: 1;
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+#clear-input svg {
+    width: 16px;
+    height: 16px;
+    color: #9ca3af;
+}
+
+#clear-input:hover svg {
+    color: #ffffff;
+}
+
+#clear-input.hidden {
+    display: none;
 }
 
 /* Header styles */
