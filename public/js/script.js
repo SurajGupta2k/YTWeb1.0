@@ -946,7 +946,7 @@ function displayVideos(videosToDisplay) {
                              alt="${video.title}"
                              class="w-full h-full object-cover"
                              loading="lazy">
-                        <button class="play-button absolute top-2 right-2 bg-youtube hover:bg-youtube-dark text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        <button class="play-button absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-youtube text-white p-2 rounded-full transition-all duration-200"
                                 onclick="event.preventDefault(); event.stopPropagation();"
                                 data-video-id="${video.videoId}">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
