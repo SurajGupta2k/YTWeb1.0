@@ -897,11 +897,24 @@ function createVideoPlayer(videoId, container) {
 function closeVideoOverlay(overlayId) {
     const overlay = document.getElementById(overlayId);
     if (overlay) {
+        // Find the player iframe
+        const playerId = overlayId.replace('video-overlay-', 'player-');
+        const playerFrame = document.getElementById(playerId);
+        
+        // If there's a YouTube player instance, destroy it first
+        if (window.YT && window.YT.Player && playerFrame) {
+            const player = YT.get(playerId);
+            if (player) {
+                player.destroy();
+            }
+        }
+        
+        // Remove the overlay
         overlay.remove();
     }
 }
 
-// Modify your displayVideos function to include the play button and video overlay
+// Modify your displayVideos function to include the updated overlay handling
 function displayVideos(videosToDisplay) {
     const videoList = document.getElementById('video-list');
     videoList.innerHTML = '';
@@ -990,22 +1003,22 @@ function displayVideos(videosToDisplay) {
                 const overlayId = `video-overlay-${video.videoId}`;
                 const existingOverlay = document.getElementById(overlayId);
                 if (existingOverlay) {
-                    existingOverlay.remove();
+                    closeVideoOverlay(overlayId);
                     return;
                 }
 
                 const overlay = document.createElement('div');
                 overlay.id = overlayId;
-                overlay.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+                overlay.className = 'video-overlay';
                 overlay.innerHTML = `
-                    <div class="relative w-full max-w-4xl mx-4">
-                        <button class="absolute -top-10 right-0 text-white hover:text-youtube p-2" onclick="closeVideoOverlay('${overlayId}')">
+                    <div class="video-overlay-content">
+                        <button class="video-overlay-close" onclick="closeVideoOverlay('${overlayId}')">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
                         </button>
-                        <div class="relative pt-[56.25%]">
-                            <div id="player-${video.videoId}" class="absolute inset-0"></div>
+                        <div class="video-player-container">
+                            <div id="player-${video.videoId}" class="video-player"></div>
                         </div>
                     </div>
                 `;
@@ -1019,6 +1032,20 @@ function displayVideos(videosToDisplay) {
                         closeVideoOverlay(overlayId);
                     }
                 });
+
+                // Prevent clicks inside the video from closing the overlay
+                overlay.querySelector('.video-overlay-content').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                });
+
+                // Handle escape key to close overlay
+                const handleEscape = (e) => {
+                    if (e.key === 'Escape') {
+                        closeVideoOverlay(overlayId);
+                        document.removeEventListener('keydown', handleEscape);
+                    }
+                };
+                document.addEventListener('keydown', handleEscape);
             });
 
             videoList.appendChild(li);
