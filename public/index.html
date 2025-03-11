@@ -50,18 +50,23 @@
             <div class="space-y-4">
                 <!-- URL Input and Load Button -->
                 <div class="flex flex-col md:flex-row gap-3">
-                    <div class="flex-1 relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg class="h-5 w-5 text-gray-400 dark:text-gray-500" fill="currentColor" viewBox="0 0 20 20">
-                                <path d="M12.9 14.32a8 8 0 1 1 1.41-1.41l5.35 5.33-1.42 1.42-5.33-5.34zM8 14A6 6 0 1 0 8 2a6 6 0 0 0 0 12z"></path>
+                    <div class="search-container relative flex-1">
+                        <input type="text" 
+                               id="playlist-url" 
+                               class="search-input pl-10 pr-10 w-full" 
+                               placeholder="Enter YouTube channel URL or playlist URL"
+                               autocomplete="off">
+                        <span class="absolute left-3 top-1/2 transform -translate-y-1/2">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                             </svg>
-                        </div>
-                        <input 
-                            type="text" 
-                            id="playlist-url" 
-                            placeholder="Enter YouTube channel URL or playlist URL"
-                            class="w-full pl-10 pr-4 py-3 text-sm md:text-base border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-youtube focus:border-youtube dark:focus:ring-youtube-dark dark:focus:border-youtube-dark outline-none transition-all"
-                        >
+                        </span>
+                        <button id="clear-input" 
+                                class="absolute right-3 top-1/2 transform -translate-y-1/2 hidden">
+                            <svg class="w-5 h-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
                     </div>
                     <button 
                         id="load-content"

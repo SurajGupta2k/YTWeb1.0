@@ -250,6 +250,14 @@ function setupEventListeners() {
             behavior: 'smooth'
         });
     });
+
+    // Handle input clear functionality
+    setupInputClear();
+    
+    // Disable autocomplete for URL input
+    const urlInput = document.getElementById('playlist-url');
+    urlInput.setAttribute('autocomplete', 'off');
+    urlInput.setAttribute('spellcheck', 'false');
 }
 
 // Add this new function to clear all content and reset state
@@ -1430,4 +1438,22 @@ function updateLoadingStatus(message, isCache = false, isGemini = false, isSucce
             </div>
         `;
     }
+}
+
+// Handle input clear functionality
+function setupInputClear() {
+    const input = document.getElementById('playlist-url');
+    const clearButton = document.getElementById('clear-input');
+
+    // Show/hide clear button based on input content
+    input.addEventListener('input', () => {
+        clearButton.classList.toggle('hidden', !input.value);
+    });
+
+    // Clear input when X is clicked
+    clearButton.addEventListener('click', () => {
+        input.value = '';
+        clearButton.classList.add('hidden');
+        input.focus();
+    });
 }
