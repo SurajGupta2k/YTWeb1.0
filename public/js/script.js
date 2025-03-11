@@ -1516,14 +1516,13 @@ function setupInputClear() {
     const input = document.getElementById('playlist-url');
     const clearButton = document.getElementById('clear-input');
 
-    // Show/hide clear button based on input content
-    const toggleClearButton = () => {
-        if (input.value) {
+    function toggleClearButton() {
+        if (input.value.trim()) {
             clearButton.classList.remove('hidden');
         } else {
             clearButton.classList.add('hidden');
         }
-    };
+    }
 
     // Initial state
     toggleClearButton();
@@ -1532,10 +1531,12 @@ function setupInputClear() {
     input.addEventListener('input', toggleClearButton);
     input.addEventListener('change', toggleClearButton);
 
-    // Clear input when X is clicked
-    clearButton.addEventListener('click', () => {
+    // Clear input when button is clicked
+    clearButton.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         input.value = '';
-        clearButton.classList.add('hidden');
+        toggleClearButton();
         input.focus();
     });
 }

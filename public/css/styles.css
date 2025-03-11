@@ -475,32 +475,29 @@ input, button {
     top: 50%;
     transform: translateY(-50%);
     cursor: pointer;
-    padding: 4px;
+    padding: 8px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 0, 0, 0.1);
     transition: all 0.2s ease;
     z-index: 20;
+    color: #ffffff;
 }
 
 #clear-input:hover {
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 0, 0, 0.2);
 }
 
 #clear-input svg {
     width: 16px;
     height: 16px;
-    color: #9ca3af;
-}
-
-#clear-input:hover svg {
     color: #ffffff;
 }
 
 #clear-input.hidden {
-    display: none;
+    display: none !important;
 }
 
 /* Header styles */
