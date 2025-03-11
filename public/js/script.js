@@ -310,8 +310,13 @@ async function loadContent() {
         if (playlistIdMatch) {
             // Handle playlist URL
             await loadPlaylistData(playlistIdMatch[1]);
-        } else if (url.includes('/channel/')) {
-            // Handle channel URL with more precise extraction
+        } else if (url.match(/^https?:\/\/(www\.)?youtube\.com\/@[\w-]+$/)) {
+            // Handle channel URL with more flexible validation
+            const channelHandle = url.split('@')[1];
+            channelSearchMode = true;
+            await getChannelId(channelHandle);
+        } else if (url.match(/^https?:\/\/(www\.)?youtube\.com\/channel\/[A-Za-z0-9_-]{24}$/)) {
+            // Handle direct channel ID URL
             const channelIdMatch = url.match(/channel\/([^/?]+)/);
             if (!channelIdMatch) {
                 throw new Error('Invalid channel URL format');
@@ -319,11 +324,6 @@ async function loadContent() {
             channelSearchMode = true;
             channelId = channelIdMatch[1];
             await getChannelDetails(channelId);
-        } else if (url.match(/^https?:\/\/(www\.)?youtube\.com\/@[\w-]+$/)) {
-            // Handle channel handle URL
-            const channelHandle = url.split('@')[1];
-            channelSearchMode = true;
-            await getChannelId(channelHandle);
         } else {
             throw new Error('Please enter a valid YouTube channel URL (e.g., https://youtube.com/@username) or playlist URL');
         }
@@ -1444,121 +1444,16 @@ function updateLoadingStatus(message, isCache = false, isGemini = false, isSucce
 function setupInputClear() {
     const input = document.getElementById('playlist-url');
     const clearButton = document.getElementById('clear-input');
-    const suggestionsContainer = document.getElementById('channel-suggestions');
 
     // Show/hide clear button based on input content
-    input.addEventListener('input', (e) => {
+    input.addEventListener('input', () => {
         clearButton.classList.toggle('hidden', !input.value);
-        
-        // Handle channel suggestions
-        clearTimeout(searchTimeout);
-        const query = e.target.value.trim();
-        
-        if (query && !query.includes('youtube.com') && !query.includes('youtu.be')) {
-            searchTimeout = setTimeout(() => {
-                handleChannelSuggestions(query);
-            }, 300); // Debounce for 300ms
-        } else {
-            suggestionsContainer.classList.add('hidden');
-        }
     });
 
     // Clear input when X is clicked
     clearButton.addEventListener('click', () => {
         input.value = '';
         clearButton.classList.add('hidden');
-        suggestionsContainer.classList.add('hidden');
         input.focus();
     });
-
-    // Hide suggestions when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!input.contains(e.target) && !suggestionsContainer.contains(e.target)) {
-            suggestionsContainer.classList.add('hidden');
-        }
-    });
-}
-
-let searchTimeout = null;
-
-// Function to handle channel suggestions
-async function handleChannelSuggestions(query) {
-    if (!query || query.includes('youtube.com')) return;
-    
-    try {
-        const response = await fetch(
-            `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&maxResults=5&q=${encodeURIComponent(query)}&key=${getCurrentApiKey()}`
-        );
-        const data = await response.json();
-        
-        if (!response.ok) {
-            if (data.error?.message?.includes('quota')) {
-                throw new Error('quota exceeded');
-            }
-            throw new Error(data.error?.message || 'Failed to fetch suggestions');
-        }
-
-        const suggestionsContainer = document.getElementById('channel-suggestions');
-        suggestionsContainer.innerHTML = '';
-
-        if (data.items && data.items.length > 0) {
-            data.items.forEach(item => {
-                const suggestionDiv = document.createElement('div');
-                suggestionDiv.className = 'channel-suggestion p-3 hover:bg-gray-700 cursor-pointer flex items-center gap-3 transition-colors duration-200';
-                suggestionDiv.innerHTML = `
-                    <img src="${item.snippet.thumbnails.default.url}" 
-                         alt="${item.snippet.title}" 
-                         class="w-10 h-10 rounded-full">
-                    <div class="flex-1">
-                        <div class="text-white font-medium">${item.snippet.title}</div>
-                        <div class="text-gray-400 text-sm">@${item.snippet.customUrl || item.snippet.channelTitle}</div>
-                    </div>
-                `;
-                
-                // Modified click handler with proper cache clearing
-                suggestionDiv.addEventListener('click', async () => {
-                    const urlInput = document.getElementById('playlist-url');
-                    const newChannelId = item.id.channelId;
-                    
-                    // Clear existing content and cache
-                    clearContent();
-                    
-                    // Clear channel-specific cache
-                    try {
-                        await fetch('/api/cache/clear', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                channelId: newChannelId
-                            })
-                        });
-                    } catch (error) {
-                        console.error('Error clearing cache:', error);
-                    }
-                    
-                    // Update URL and channel ID
-                    urlInput.value = `https://youtube.com/channel/${newChannelId}`;
-                    channelId = newChannelId; // Update global channelId
-                    suggestionsContainer.classList.add('hidden');
-                    
-                    // Load new channel content
-                    await loadContent();
-                });
-                
-                suggestionsContainer.appendChild(suggestionDiv);
-            });
-            
-            suggestionsContainer.classList.remove('hidden');
-        } else {
-            suggestionsContainer.classList.add('hidden');
-        }
-    } catch (error) {
-        console.error('Error fetching suggestions:', error);
-        if (error.message.includes('quota')) {
-            await rotateApiKey();
-            handleChannelSuggestions(query);
-        }
-    }
 }
