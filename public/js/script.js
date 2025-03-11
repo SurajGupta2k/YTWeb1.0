@@ -310,13 +310,8 @@ async function loadContent() {
         if (playlistIdMatch) {
             // Handle playlist URL
             await loadPlaylistData(playlistIdMatch[1]);
-        } else if (url.match(/^https?:\/\/(www\.)?youtube\.com\/@[\w-]+$/)) {
-            // Handle channel URL with more flexible validation
-            const channelHandle = url.split('@')[1];
-            channelSearchMode = true;
-            await getChannelId(channelHandle);
-        } else if (url.match(/^https?:\/\/(www\.)?youtube\.com\/channel\/[A-Za-z0-9_-]{24}$/)) {
-            // Handle direct channel ID URL
+        } else if (url.includes('/channel/')) {
+            // Handle channel URL with more precise extraction
             const channelIdMatch = url.match(/channel\/([^/?]+)/);
             if (!channelIdMatch) {
                 throw new Error('Invalid channel URL format');
@@ -324,6 +319,11 @@ async function loadContent() {
             channelSearchMode = true;
             channelId = channelIdMatch[1];
             await getChannelDetails(channelId);
+        } else if (url.match(/^https?:\/\/(www\.)?youtube\.com\/@[\w-]+$/)) {
+            // Handle channel handle URL
+            const channelHandle = url.split('@')[1];
+            channelSearchMode = true;
+            await getChannelId(channelHandle);
         } else {
             throw new Error('Please enter a valid YouTube channel URL (e.g., https://youtube.com/@username) or playlist URL');
         }
@@ -1515,12 +1515,36 @@ async function handleChannelSuggestions(query) {
                     </div>
                 `;
                 
-                // Add click handler
-                suggestionDiv.addEventListener('click', () => {
+                // Modified click handler with proper cache clearing
+                suggestionDiv.addEventListener('click', async () => {
                     const urlInput = document.getElementById('playlist-url');
-                    urlInput.value = `https://youtube.com/channel/${item.id.channelId}`;
+                    const newChannelId = item.id.channelId;
+                    
+                    // Clear existing content and cache
+                    clearContent();
+                    
+                    // Clear channel-specific cache
+                    try {
+                        await fetch('/api/cache/clear', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                channelId: newChannelId
+                            })
+                        });
+                    } catch (error) {
+                        console.error('Error clearing cache:', error);
+                    }
+                    
+                    // Update URL and channel ID
+                    urlInput.value = `https://youtube.com/channel/${newChannelId}`;
+                    channelId = newChannelId; // Update global channelId
                     suggestionsContainer.classList.add('hidden');
-                    loadContent(); // Automatically load the channel
+                    
+                    // Load new channel content
+                    await loadContent();
                 });
                 
                 suggestionsContainer.appendChild(suggestionDiv);

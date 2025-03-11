@@ -377,4 +377,47 @@ router.get('/key-usage', (req, res) => {
     res.json(stats);
 });
 
+// Clear channel-specific cache
+router.post('/cache/clear', async (req, res) => {
+    try {
+        const { channelId } = req.body;
+        
+        if (!channelId) {
+            return res.status(400).json({ error: 'Channel ID is required' });
+        }
+
+        // Connect to MongoDB
+        if (!client.topology || !client.topology.isConnected()) {
+            await client.connect();
+        }
+
+        const db = client.db(DB_CONFIG.dbName);
+        
+        // Clear all collections for this channel
+        const collections = Object.values(DB_CONFIG.collections);
+        const results = await Promise.all(
+            collections.map(async (collectionName) => {
+                const collection = db.collection(collectionName);
+                const result = await collection.deleteMany({
+                    $or: [
+                        { channelId: channelId },
+                        { key: new RegExp(`^channel_${channelId}`) },
+                        { key: new RegExp(`^${channelId}`) }
+                    ]
+                });
+                return { collection: collectionName, deleted: result.deletedCount };
+            })
+        );
+
+        res.json({ 
+            message: 'Channel cache cleared',
+            results,
+            timestamp: new Date()
+        });
+    } catch (error) {
+        console.error('Error clearing cache:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 export default router; 
