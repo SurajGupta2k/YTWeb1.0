@@ -13,7 +13,8 @@ const getPreferredTheme = () => {
     if (savedTheme) {
         return savedTheme;
     }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    // Default to light mode, ignoring system preference.
+    return 'light';
 };
 
 // Applies the chosen theme. This involves adding/removing the 'dark' class,
@@ -41,11 +42,4 @@ themeToggle.addEventListener('click', () => {
     setTheme(isDark ? 'light' : 'dark');
 });
 
-// Listens for changes to the system's color scheme. If the user hasn't
-// manually set a theme on our site, we'll automatically adjust to match
-// their system's new preference.
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    if (!localStorage.getItem('theme')) {
-        setTheme(e.matches ? 'dark' : 'light');
-    }
-});
+// The event listener for system preference changes has been removed to enforce the default.
