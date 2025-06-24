@@ -419,4 +419,51 @@ router.get('/resolve-handle', async (req, res) => {
     }
 });
 
+router.post('/cache-chunk', async (req, res) => {
+    const { key, collection, chunk, isFirstChunk } = req.body;
+
+    if (!key || !collection || !chunk || !Array.isArray(chunk)) {
+        return res.status(400).json({ error: 'Missing required fields for chunked caching.' });
+    }
+
+    let client;
+    try {
+        client = new MongoClient(process.env.MONGODB_URI || DB_CONFIG.CONNECTION_STRING);
+        await client.connect();
+        const db = client.db(DB_CONFIG.DB_NAME);
+        const cacheCollection = db.collection(collection);
+
+        if (isFirstChunk) {
+            // For the first chunk, we delete the old entry and create a new one.
+            await cacheCollection.deleteOne({ key });
+            const result = await cacheCollection.insertOne({
+                key,
+                data: { videos: chunk },
+                createdAt: new Date()
+            });
+            res.status(201).json({ success: true, insertedId: result.insertedId });
+        } else {
+            // For subsequent chunks, we append to the 'videos' array.
+            const result = await cacheCollection.updateOne(
+                { key },
+                { $push: { 'data.videos': { $each: chunk } } }
+            );
+
+            if (result.matchedCount === 0) {
+                return res.status(404).json({ error: `Cache entry with key "${key}" not found for appending chunk.` });
+            }
+
+            res.status(200).json({ success: true, modifiedCount: result.modifiedCount });
+        }
+
+    } catch (error) {
+        console.error('Error during chunked caching:', error);
+        res.status(500).json({ error: 'Failed to cache chunk to database.' });
+    } finally {
+        if (client) {
+            await client.close();
+        }
+    }
+});
+
 export default router;

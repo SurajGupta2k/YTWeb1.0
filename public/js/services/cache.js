@@ -35,19 +35,61 @@ export async function getCachedData(key, collection = 'videos') {
 
 // Once we've fetched new data from YouTube, we store it in our cache.
 // This helps us avoid making the same request over and over.
+async function cacheDataInChunks(key, videos, collection) {
+    const CHUNK_SIZE = 150; // Number of videos per chunk
+    const totalChunks = Math.ceil(videos.length / CHUNK_SIZE);
+    console.log(`[Cache] Splitting ${videos.length} videos into ${totalChunks} chunks.`);
+
+    for (let i = 0; i < totalChunks; i++) {
+        updateLoadingStatus(`Caching data to DB... (Chunk ${i + 1}/${totalChunks})`, true);
+        const chunk = videos.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+        
+        const payload = {
+            key,
+            collection,
+            chunk,
+            isFirstChunk: i === 0
+        };
+
+        const response = await fetch('/api/cache-chunk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to cache chunk ${i + 1}: ${errorText}`);
+        }
+        console.log(`[Cache] Chunk ${i + 1}/${totalChunks} cached successfully.`);
+    }
+    console.log('[Cache] All chunks cached successfully.');
+}
+
 export async function cacheData(key, data, collection = 'videos') {
+    const MAX_PAYLOAD_SIZE = 4 * 1024 * 1024; // 4MB Vercel limit
+
     try {
+        const payload = JSON.stringify({ key, data, collection });
+
+        if (payload.length > MAX_PAYLOAD_SIZE) {
+            console.warn(`[Cache] Payload for key "${key}" is too large, attempting to cache in chunks.`);
+            if (data.videos && Array.isArray(data.videos)) {
+                await cacheDataInChunks(key, data.videos, collection);
+            } else {
+                console.error("[Cache] Data is too large but doesn't have a 'videos' array to chunk. Skipping.");
+            }
+            return;
+        }
+        
         console.log(`[Cache] Storing data for key: ${key} in collection: ${collection}`);
         console.log('[Cache] Data to store:', data);
         updateLoadingStatus('Storing data in cache...', true);
         
-        const cachePayload = { key, data, collection };
-        console.log('[Cache] Sending payload:', cachePayload);
-        
         const response = await fetch('/api/cache', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(cachePayload)
+            body: JSON.stringify(payload)
         });
 
         const result = await response.json();
