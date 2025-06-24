@@ -1,0 +1,73 @@
+/*
+  Styles for the floating action buttons (Refresh, Scroll to Top)
+*/
+
+.floating-buttons-container {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    z-index: 1000;
+}
+
+.floating-button {
+    --nb-floating-shadow-offset: 3px; /* Smaller shadow for these buttons */
+
+    background-color: var(--nb-primary-accent);
+    color: var(--nb-text-color-primary); /* Use primary text color for the icon */
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: var(--nb-border-width) solid var(--nb-border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--nb-floating-shadow-offset) var(--nb-floating-shadow-offset) 0 var(--nb-border-color);
+    transition: all 0.2s ease-in-out;
+}
+
+.floating-button svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* 
+  Removing hover and active effects as requested 
+*/
+/*
+.floating-button:hover {
+    transform: translateY(-2px) translateX(-1px);
+    box-shadow: calc(var(--nb-floating-shadow-offset) + 3px) calc(var(--nb-floating-shadow-offset) + 3px) 0 var(--nb-border-color);
+}
+
+.floating-button:active {
+    transform: translateY(1px) translateX(0);
+    box-shadow: calc(var(--nb-floating-shadow-offset) - 2px) calc(var(--nb-floating-shadow-offset) - 2px) 0 var(--nb-border-color);
+}
+*/
+
+/* Specific styles for each button */
+#scroll-to-top {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+}
+
+#scroll-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+#refresh-button.refreshing svg {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+} 

@@ -1,0 +1,65 @@
+/*
+  Styles for the Pagination Controls
+*/
+
+.pagination-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1rem 0;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.pagination-button {
+    background-color: white;
+    border: var(--nb-border-width) solid var(--nb-border-color);
+    border-radius: var(--nb-radius);
+    box-shadow: var(--nb-shadow-offset) var(--nb-shadow-offset) 0 var(--nb-border-color);
+    padding: 0.5rem 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease-out;
+}
+body.dark .pagination-button {
+    background-color: #252525;
+    color: var(--nb-text);
+}
+
+.pagination-button:hover {
+    transform: translate(2px, 2px);
+    box-shadow: calc(var(--nb-shadow-offset) - 2px) calc(var(--nb-shadow-offset) - 2px) 0 var(--nb-border-color);
+}
+
+.pagination-button:active {
+    transform: translate(var(--nb-shadow-offset), var(--nb-shadow-offset));
+    box-shadow: 0 0 0 var(--nb-border-color);
+}
+body.dark .pagination-button:active {
+    box-shadow: inset 3px 3px 4px rgba(0,0,0,0.5);
+    filter: brightness(95%);
+}
+
+.pagination-button.active {
+    background-color: var(--nb-primary-accent);
+    color: #1a1a1a;
+    transform: translate(var(--nb-shadow-offset), var(--nb-shadow-offset));
+    box-shadow: 0 0 0 var(--nb-border-color);
+}
+
+.pagination-button.disabled {
+    background-color: #e0e0e0;
+    color: #a0a0a0;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+body.dark .pagination-button.disabled {
+    background-color: #404040;
+    color: #707070;
+}
+
+.pagination-ellipsis {
+    padding: 0.5rem;
+    font-weight: 700;
+} 

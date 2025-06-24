@@ -1,68 +1,96 @@
-import { VideoController } from './controllers/VideoController.js';
-import { YouTubeService } from './services/YouTubeService.js';
+import { globalState, setVideos, clearChannelInfo } from './state.js';
+import { renderPaginatedView, clearContent, updateLoadingStatus } from './ui/renderer.js';
+import { getChannelDetails, getChannelIdByHandle, loadPlaylistData, loadChannelData } from './services/youtube.js';
+import { categorizeVideos } from './services/gemini.js';
 
-class App {
-    static async init() {
-        try {
-            await YouTubeService.initYouTubeAPI();
-            this.setupEventListeners();
-        } catch (error) {
-            console.error('Error initializing app:', error);
+// This is the main function that kicks things off. It grabs the URL the user
+// entered, figures out what kind of link it is (playlist, channel, etc.),
+// and then fetches the videos.
+export async function loadContent() {
+    updateLoadingStatus('Starting...', true);
+    clearContent();
+    clearChannelInfo();
+    
+    const url = document.getElementById('playlist-url').value.trim();
+
+    try {
+        if (!url) throw new Error('Please enter a YouTube channel or playlist URL.');
+
+        const playlistIdMatch = url.match(/list=([^&]+)/);
+        if (playlistIdMatch) {
+            await loadPlaylistData(playlistIdMatch[1]);
+            return;
         }
-    }
 
-    static setupEventListeners() {
-        // Load content button
-        document.getElementById('load-content').addEventListener('click', () => VideoController.loadContent());
+        const channelHandleMatch = url.match(/^https?:\/\/(www\.)?youtube\.com\/@([\w-]+)/);
+        if (channelHandleMatch) {
+            await getChannelIdByHandle(channelHandleMatch[2]);
+            return;
+        }
 
-        // Channel options buttons
-        document.getElementById('load-videos').addEventListener('click', () => VideoController.loadChannelData('videos'));
-        document.getElementById('load-streams').addEventListener('click', () => VideoController.loadChannelData('streams'));
+        const channelIdMatch = url.match(/channel\/([A-Za-z0-9_-]{24})/);
+        if (channelIdMatch) {
+            await getChannelDetails(channelIdMatch[1]);
+            return;
+        }
+        
+        throw new Error('Please enter a valid YouTube channel URL (e.g., https://youtube.com/@username) or playlist URL.');
 
-        // Search and categorize buttons
-        document.getElementById('search-video').addEventListener('click', () => {
-            const query = document.getElementById('search-input').value.trim();
-            if (query) {
-                const results = VideoController.videos.filter(video => 
-                    video.title.toLowerCase().includes(query.toLowerCase())
-                );
-                VideoController.displayVideos(results);
-            }
-        });
-
-        document.getElementById('categorize-videos').addEventListener('click', () => VideoController.categorizeVideos());
-
-        // Sort buttons
-        document.getElementById('sort-old-new').addEventListener('click', () => {
-            VideoController.videos.sort((a, b) => a.publishedAt - b.publishedAt);
-            VideoController.displayVideos(VideoController.videos);
-        });
-
-        document.getElementById('sort-new-old').addEventListener('click', () => {
-            VideoController.videos.sort((a, b) => b.publishedAt - a.publishedAt);
-            VideoController.displayVideos(VideoController.videos);
-        });
-
-        document.getElementById('sort-views').addEventListener('click', () => {
-            VideoController.videos.sort((a, b) => b.viewCount - a.viewCount);
-            VideoController.displayVideos(VideoController.videos);
-        });
-
-        // Search input enter key
-        document.getElementById('search-input').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                document.getElementById('search-video').click();
-            }
-        });
-
-        // Playlist URL input enter key
-        document.getElementById('playlist-url').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                document.getElementById('load-content').click();
-            }
-        });
+    } catch (error) {
+        console.error('Error loading content:', error);
+        alert(error.message || 'An unexpected error occurred.');
+        updateLoadingStatus(null);
     }
 }
 
-// Initialize app when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => App.init());
+// Once a channel is loaded, this handles switching between viewing
+// regular videos and live streams.
+export function handleChannelContentTypes(type) {
+    loadChannelData(type);
+}
+
+// This is our workhorse for updating the view. It takes the full list of videos
+// and applies any active sorting or search filters before displaying them.
+export function applySortAndRender() {
+    let filteredVideos = [...globalState.masterVideoList];
+
+    if (globalState.currentSearchTerm) {
+        const searchTerm = globalState.currentSearchTerm.toLowerCase();
+        filteredVideos = filteredVideos.filter(video =>
+            (video.title || '').toLowerCase().includes(searchTerm)
+        );
+    }
+
+    switch (globalState.currentSort) {
+        case 'date_asc':
+            filteredVideos.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
+            break;
+        case 'date_desc':
+            filteredVideos.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+            break;
+        case 'views_desc':
+            filteredVideos.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
+            break;
+    }
+
+    globalState.videos = filteredVideos;
+    renderPaginatedView();
+}
+
+// When the user picks a new way to sort the videos, this function gets called.
+export function sortVideos(sortBy) {
+    if (globalState.masterVideoList.length === 0) return;
+    globalState.currentSort = sortBy;
+    applySortAndRender();
+}
+
+// This runs whenever the user types something in the search bar.
+export function searchAndDisplayVideos() {
+    globalState.currentSearchTerm = document.getElementById('search-input').value.trim();
+    applySortAndRender();
+}
+
+// This function starts the magic AI categorization process.
+export function categorizeAndDisplayVideos() {
+    categorizeVideos();
+}

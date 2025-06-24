@@ -7,231 +7,183 @@
     <title>TubeSort - Organize YouTube Content Your Way</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.youtube.com/iframe_api"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        'youtube': '#FF0000',
-                        'youtube-dark': '#CC0000',
-                    }
-                },
-            }
-        }
-    </script>
+    <link rel="stylesheet" href="css/neo-brutalism.css">
+    <link rel="stylesheet" href="css/video-overlay.css">
+    <link rel="stylesheet" href="css/pagination.css">
+    <link rel="stylesheet" href="css/actions.css">
+    <link rel="stylesheet" href="css/categories.css">
     <link rel="stylesheet" href="css/styles.css">
 </head>
-<body class="bg-gray-100 min-h-screen dark:bg-gray-900 transition-colors duration-200">
+<body class="transition-colors duration-200">
     <div id="app" class="max-w-7xl mx-auto px-4 py-4">
         <!-- Header -->
-        <div class="relative mb-6">
+        <div class="relative mb-8 nb-header">
             <!-- Theme Toggle Button -->
             <button 
                 id="theme-toggle"
-                class="absolute right-0 top-0 p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors duration-200"
+                class="absolute right-0 top-0"
                 aria-label="Toggle dark mode"
             >
                 <!-- Sun icon -->
-                <svg class="w-6 h-6 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg id="theme-icon-sun" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
                 </svg>
                 <!-- Moon icon -->
-                <svg class="w-6 h-6 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg id="theme-icon-moon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
                 </svg>
             </button>
             <!-- Centered Title -->
-            <div class="text-center">
-                <h1 class="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white mb-2">TubeSort</h1>
-                <p class="text-gray-600 dark:text-gray-400 text-sm md:text-base">Organize YouTube Content Your Way</p>
+            <div>
+                <h1 class="title">TubeSort</h1>
+                <p class="subtitle">Organize YouTube Content Your Way</p>
             </div>
         </div>
 
         <!-- Main Controls -->
-        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 md:p-6 mb-6">
-            <div class="space-y-4">
+        <div class="nb-container mb-8">
+            <div class="space-y-6">
                 <!-- URL Input and Load Button -->
-                <div class="flex flex-col md:flex-row gap-3">
-                    <div class="search-container relative flex-1">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <div class="relative flex-1">
                         <input type="text" 
                                id="playlist-url" 
-                               class="search-input" 
-                               placeholder="Enter YouTube channel URL or playlist URL"
+                               class="nb-input" 
+                               placeholder="Enter YouTube channel or playlist URL"
                                autocomplete="off"
                                spellcheck="false">
-                        <button id="clear-input" 
-                                class="hidden"
-                                type="button"
-                                aria-label="Clear input">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                            </svg>
-                        </button>
                     </div>
                     <button 
                         id="load-content"
-                        class="bg-youtube hover:bg-youtube-dark text-white px-6 py-3 rounded-lg transition-all duration-200 font-semibold text-sm md:text-base flex items-center justify-center gap-2 hover:scale-105"
+                        class="nb-button primary flex items-center justify-center gap-2"
                     >
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                         </svg>
-                        Load
+                        Load Content
                     </button>
                 </div>
 
                 <!-- Channel Options -->
-                <div id="channel-options" class="hidden space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div class="flex flex-col gap-4">
-                        <!-- Content Type Selector -->
-                        <div class="flex flex-wrap gap-3">
-                            <button 
-                                id="load-videos"
-                                class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-all duration-200 text-sm md:text-base hover:scale-105 flex items-center justify-center gap-2 relative"
-                            >
-                                <div class="flex items-center gap-2">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                                    </svg>
-                                    <span>Regular Videos</span>
-                                </div>
-                                <span class="absolute -top-2 -right-2 bg-blue-500 text-xs px-2 py-1 rounded-full">VOD</span>
-                            </button>
-                            <button 
-                                id="load-streams"
-                                class="flex-1 md:flex-none bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition-all duration-200 text-sm md:text-base hover:scale-105 flex items-center justify-center gap-2 relative"
-                            >
-                                <div class="flex items-center gap-2">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-                                    </svg>
-                                    <span>Live Streams</span>
-                                </div>
-                                <span class="absolute -top-2 -right-2 bg-purple-500 text-xs px-2 py-1 rounded-full">LIVE</span>
-                            </button>
-                        </div>
-
-                        <!-- Content Type Info -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                                <h3 class="text-blue-700 dark:text-blue-300 font-semibold mb-2 flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                    </svg>
-                                    Regular Videos
-                                </h3>
-                                <p class="text-sm text-blue-600 dark:text-blue-200">Pre-recorded content, tutorials, vlogs, and other uploaded videos</p>
-                            </div>
-                            <div class="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
-                                <h3 class="text-purple-700 dark:text-purple-300 font-semibold mb-2 flex items-center gap-2">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.636 18.364a9 9 0 010-12.728m12.728 0a9 9 0 010 12.728m-9.9-2.829a5 5 0 010-7.07m7.072 0a5 5 0 010 7.07M13 12a1 1 0 11-2 0 1 1 0 012 0z"/>
-                                    </svg>
-                                    Live Streams
-                                </h3>
-                                <p class="text-sm text-purple-600 dark:text-purple-200">Live broadcasts, events, and real-time streaming content</p>
-                            </div>
-                        </div>
+                <div id="channel-options" class="hidden space-y-4 pt-4 border-t-2 border-dashed">
+                    <div class="flex flex-wrap gap-4">
+                        <button 
+                            id="load-videos"
+                            class="nb-button info flex-1"
+                        >
+                            Load Regular Videos
+                        </button>
+                        <button 
+                            id="load-streams"
+                            class="nb-button secondary flex-1"
+                        >
+                           Load Live Streams
+                        </button>
                     </div>
                 </div>
+                
+                <hr class="border-t-2 border-dashed">
 
                 <!-- Search and Actions -->
-                <div class="flex flex-col md:flex-row gap-3">
+                <div class="flex flex-col md:flex-row gap-4">
                     <div class="flex-1 relative">
-                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg class="h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                            </svg>
-                        </div>
                         <input 
                             type="text" 
                             id="search-input" 
-                            placeholder="Search videos..."
-                            class="w-full pl-10 pr-4 py-3 text-sm md:text-base border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-youtube focus:border-youtube dark:focus:ring-youtube-dark dark:focus:border-youtube-dark outline-none transition-all"
+                            placeholder="Search loaded videos..."
+                            class="nb-input"
                         >
                     </div>
-                    <div class="flex flex-wrap gap-3">
-                        <button 
-                            id="search-video"
-                            class="flex-1 md:flex-none bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg transition-all duration-200 text-sm md:text-base hover:scale-105 flex items-center justify-center gap-2"
-                        >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                            </svg>
-                            Search
-                        </button>
-                        <button 
-                            id="categorize-videos"
-                            class="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-lg transition-all duration-200 text-sm md:text-base hover:scale-105 flex items-center justify-center gap-2"
-                        >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-                            </svg>
-                            Categorize
-                        </button>
-                    </div>
+                    <button 
+                        id="search-video"
+                        class="nb-button success flex items-center justify-center gap-2"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                        Search
+                    </button>
+                    <button 
+                        id="categorize-videos"
+                        class="nb-button secondary flex items-center justify-center gap-2"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                        </svg>
+                        AI Categorize
+                    </button>
                 </div>
 
                 <!-- Sort Options -->
-                <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                <div class="flex flex-wrap gap-3 pt-4">
                     <button 
                         id="sort-old-new"
-                        class="flex-1 md:flex-none bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-all duration-200 text-sm md:text-base hover:scale-105 flex items-center justify-center gap-2"
+                        class="nb-button flex-1"
                     >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"/>
-                        </svg>
                         Old → New
                     </button>
                     <button 
                         id="sort-new-old"
-                        class="flex-1 md:flex-none bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-all duration-200 text-sm md:text-base hover:scale-105 flex items-center justify-center gap-2"
+                        class="nb-button flex-1"
                     >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4 4m0 0l4-4m-4 4v-12"/>
-                        </svg>
                         New → Old
                     </button>
                     <button 
                         id="sort-views"
-                        class="flex-1 md:flex-none bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-all duration-200 text-sm md:text-base hover:scale-105 flex items-center justify-center gap-2"
+                        class="nb-button flex-1"
                     >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                        </svg>
                         By Views
                     </button>
                 </div>
             </div>
         </div>
 
+        <!-- Top Pagination -->
+        <div id="pagination-top" class="pagination-container my-4"></div>
+
         <!-- Loading Indicator -->
         <div id="loading" class="hidden">
-            <div class="flex items-center justify-center p-4 bg-white dark:bg-gray-800 rounded-xl">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-youtube dark:border-youtube-dark"></div>
-                <span class="ml-2 text-gray-600 dark:text-gray-400 text-sm">Loading...</span>
+            <div class="flex items-center justify-center p-4">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
+                <span class="ml-3 font-semibold text-lg">Loading...</span>
             </div>
         </div>
 
         <!-- Content Container -->
         <div id="video-container">
             <!-- Regular Video Grid -->
-            <ul id="video-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></ul>
+            <ul id="video-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></ul>
             
             <!-- Categories View -->
             <div id="categories-view" class="hidden">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <!-- Categories will be dynamically inserted here -->
+                <h2 class="section-title">Video Categories</h2>
+                <div class="categories-container">
+                    <!-- AI-generated categories will be inserted here -->
                 </div>
             </div>
+        </div>
+
+        <!-- Bottom Pagination -->
+        <div id="pagination-bottom" class="pagination-container my-4"></div>
+
+        <!-- Floating Action Buttons -->
+        <div class="floating-buttons-container">
+            <button id="refresh-button" class="floating-button" title="Refresh Page">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            </button>
+            <button id="scroll-to-top" class="floating-button" title="Scroll to Top">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+            </button>
         </div>
     </div>
 
     <!-- Scripts -->
     <script src="https://apis.google.com/js/api.js"></script>
+
+    <!-- App Scripts -->
     <script src="js/config.js" type="module"></script>
-    <script src="js/script.js" type="module"></script>
-    <script src="js/theme.js" type="module"></script>
+    <script src="js/main.js" type="module"></script>
+    <script src="js/theme.js"></script>
+    <script src="js/actions.js"></script>
 </body>
 </html> 

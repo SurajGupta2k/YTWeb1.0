@@ -1,0 +1,294 @@
+/* 
+  Neo-Brutalism Stylesheet for TubeSort
+  Inspired by the provided design reference.
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --nb-bg: #fdfbf8;
+  --nb-text: #1a1a1a;
+  --nb-primary-accent: #f5d144; /* Vibrant Yellow */
+  --nb-secondary-accent: #d9c6ff; /* Muted Purple */
+  --nb-success-accent: #a0e8a7;   /* Soft Green */
+  --nb-border-color: #1a1a1a;
+  --nb-border-width: 2px;
+  --nb-shadow-offset: 5px;
+  --nb-radius: 8px; /* The reference has slightly rounded corners */
+}
+
+/* Base styles */
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--nb-bg);
+  color: var(--nb-text);
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+  /* Add subtle dot pattern */
+  background-image: radial-gradient(circle at 1px 1px, rgba(0,0,0,0.3) 1px, transparent 0);
+  background-size: 20px 20px;
+}
+
+/* Basic Dark Mode - Overrides light theme */
+body.dark {
+  --nb-bg: #121212; /* Softer black */
+  --nb-text: #eaeaea; /* Off-white */
+  --nb-border-color: #eaeaea; /* Off-white */
+  /* Invert dot pattern for dark mode */
+  background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.1) 1px, transparent 0);
+}
+
+/* General container style */
+.nb-container {
+  background-color: white;
+  border: var(--nb-border-width) solid var(--nb-border-color);
+  border-radius: var(--nb-radius);
+  box-shadow: var(--nb-shadow-offset) var(--nb-shadow-offset) 0 var(--nb-border-color);
+  padding: 1.5rem;
+  transition: all 0.2s ease-in-out;
+}
+body.dark .nb-container {
+  background-color: #1a1a1a;
+  box-shadow: var(--nb-shadow-offset) var(--nb-shadow-offset) 0 var(--nb-border-color);
+}
+
+/* Button styles */
+.nb-button {
+  background-color: white;
+  border: var(--nb-border-width) solid var(--nb-border-color);
+  border-radius: var(--nb-radius);
+  box-shadow: var(--nb-shadow-offset) var(--nb-shadow-offset) 0 var(--nb-border-color);
+  padding: 0.75rem 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s ease-out;
+  -webkit-tap-highlight-color: transparent; /* For mobile */
+}
+body.dark .nb-button {
+  background-color: #252525;
+  color: var(--nb-text);
+  box-shadow: var(--nb-shadow-offset) var(--nb-shadow-offset) 0 var(--nb-border-color);
+}
+.nb-button:hover {
+  transform: translate(2px, 2px);
+  box-shadow: calc(var(--nb-shadow-offset) - 2px) calc(var(--nb-shadow-offset) - 2px) 0 var(--nb-border-color);
+}
+.nb-button:active {
+  transform: translate(var(--nb-shadow-offset), var(--nb-shadow-offset));
+  box-shadow: 0 0 0 var(--nb-border-color);
+}
+body.dark .nb-button:active {
+    /* Override the default active state to create an inset shadow effect for dark mode */
+    box-shadow: inset 3px 3px 4px rgba(0,0,0,0.5);
+    filter: brightness(95%);
+}
+.nb-button.primary { background-color: var(--nb-primary-accent); }
+.nb-button.secondary { background-color: var(--nb-secondary-accent); }
+.nb-button.success { background-color: var(--nb-success-accent); }
+.nb-button.info { background-color: #a3d5ff; }
+
+/* Make text on accent buttons dark for contrast in both themes */
+.nb-button.primary,
+.nb-button.secondary,
+.nb-button.success,
+.nb-button.info {
+    color: #1a1a1a;
+}
+/* This is needed to override the default dark mode button text color */
+body.dark .nb-button.primary,
+body.dark .nb-button.secondary,
+body.dark .nb-button.success,
+body.dark .nb-button.info {
+    color: #1a1a1a;
+}
+
+/* Input styles */
+.nb-input {
+  width: 100%;
+  background-color: white;
+  border: var(--nb-border-width) solid var(--nb-border-color);
+  border-radius: var(--nb-radius);
+  padding: 0.8rem 1rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  box-shadow: var(--nb-shadow-offset) var(--nb-shadow-offset) 0 var(--nb-border-color);
+}
+body.dark .nb-input {
+  background-color: #252525;
+  color: var(--nb-text);
+  box-shadow: var(--nb-shadow-offset) var(--nb-shadow-offset) 0 var(--nb-border-color);
+}
+.nb-input::placeholder {
+    color: #6b7280;
+}
+body.dark .nb-input::placeholder {
+    color: #9ca3af;
+}
+.nb-input:focus {
+  outline: none;
+  transform: translate(var(--nb-shadow-offset), var(--nb-shadow-offset));
+  box-shadow: 0 0 0 var(--nb-border-color);
+}
+
+/* Video Card styles */
+.nb-video-card {
+  list-style: none;
+  background-color: white;
+  border: var(--nb-border-width) solid var(--nb-border-color);
+  border-radius: var(--nb-radius);
+  box-shadow: var(--nb-shadow-offset) var(--nb-shadow-offset) 0 var(--nb-border-color);
+  overflow: hidden;
+  transition: all 0.2s ease-in-out;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+body.dark .nb-video-card {
+  background-color: #1a1a1a;
+  box-shadow: var(--nb-shadow-offset) var(--nb-shadow-offset) 0 var(--nb-border-color);
+}
+.nb-video-card:hover {
+  transform: translateY(-4px);
+  box-shadow: calc(var(--nb-shadow-offset) + 2px) calc(var(--nb-shadow-offset) + 2px) 0 var(--nb-primary-accent);
+}
+.nb-video-card .thumbnail-container {
+  position: relative;
+  border-bottom: var(--nb-border-width) solid var(--nb-border-color);
+  cursor: pointer;
+}
+.nb-video-card .thumbnail-container::after {
+    content: '▶';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 4rem;
+    color: white;
+    background-color: rgba(0,0,0,0.4);
+    border-radius: 50%;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-left: 5px;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+.nb-video-card:hover .thumbnail-container::after {
+    opacity: 1;
+}
+.nb-video-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+.nb-video-card .video-info {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+.nb-video-card .video-title {
+  font-weight: 800;
+  font-size: 1rem;
+  line-height: 1.3;
+  margin-bottom: 0.5rem;
+  flex-grow: 1;
+}
+.nb-video-card .video-title-link {
+    text-decoration: none;
+    color: inherit;
+}
+.nb-video-card .video-details {
+    margin-top: auto;
+    padding-top: 0.5rem;
+    border-top: var(--nb-border-width) dashed var(--nb-border-color);
+}
+body.dark .nb-video-card .video-details {
+    border-top-color: var(--nb-border-color);
+}
+.nb-video-card .detail-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--nb-radius);
+    border: var(--nb-border-width) solid var(--nb-border-color);
+    margin-bottom: 0.5rem;
+}
+.nb-video-card .detail-badge.video {
+    background-color: var(--nb-success-accent);
+}
+.nb-video-card .detail-badge.stream {
+    background-color: var(--nb-secondary-accent);
+}
+.nb-video-card .detail-text {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #4a4a4a;
+    line-height: 1.4;
+}
+body.dark .nb-video-card .detail-text {
+  color: #b5b5b5;
+}
+.nb-video-card .video-meta {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #4a4a4a;
+}
+body.dark .nb-video-card .video-meta {
+  color: #b5b5b5;
+}
+
+/* Header */
+.nb-header .title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  text-align: center;
+}
+.nb-header .subtitle {
+  font-size: 1rem;
+  font-weight: 500;
+  text-align: center;
+  color: #5f5f5f;
+  margin-top: -5px;
+}
+body.dark .nb-header .subtitle {
+  color: #ababab;
+}
+
+/* Theme toggle */
+#theme-toggle {
+    border: var(--nb-border-width) solid var(--nb-border-color);
+    border-radius: var(--nb-radius);
+    padding: 0.5rem;
+    transition: all 0.2s ease-in-out;
+}
+#theme-toggle:hover {
+    background-color: var(--nb-primary-accent);
+}
+body.dark #theme-toggle svg {
+    stroke: var(--nb-text);
+}
+
+/* Dashed border color */
+.border-dashed {
+    border-style: dashed;
+}
+
+body.dark .border-dashed {
+    border-color: #666;
+}
+
+/* Restore accent colors for buttons in dark mode */
+body.dark .nb-button.primary { background-color: var(--nb-primary-accent); }
+body.dark .nb-button.secondary { background-color: var(--nb-secondary-accent); }
+body.dark .nb-button.success { background-color: var(--nb-success-accent); }
+body.dark .nb-button.info { background-color: #a3d5ff; }
+
+/* Ensure badge text is dark for contrast */
+.nb-video-card .detail-badge {
+    color: #1a1a1a;
+} 
