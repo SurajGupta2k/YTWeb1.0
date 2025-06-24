@@ -4,10 +4,7 @@ import { DB_CONFIG } from '../../public/js/config.js';
 import dotenv from 'dotenv';
 import https from 'https';
 
-// This file sets up all our server-side API routes.
-// It handles things like talking to the database for caching,
-// managing our API keys so we don't run out of quota,
-// and a few other utility tasks.
+
 dotenv.config();
 
 const router = express.Router();
@@ -472,32 +469,86 @@ router.get('/key-usage', (req, res) => {
 // A neat little utility to find a YouTube channel's ID from its user-friendly handle (e.g., '@username').
 // It works by fetching the channel's page and finding the ID in the HTML source code.
 router.get('/resolve-handle', async (req, res) => {
+    console.log('[API] Resolving handle:', req.query);
     const { handle } = req.query;
     if (!handle) {
+        console.log('[API] No handle provided');
         return res.status(400).json({ error: 'Handle is required' });
     }
 
     const url = `https://www.youtube.com/@${handle}`;
+    console.log('[API] Fetching URL:', url);
 
-    https.get(url, (response) => {
-        let data = '';
-        response.on('data', (chunk) => {
-            data += chunk;
-        });
-        response.on('end', () => {
-            const match = data.match(/"canonicalChannelUrl":"(.*?)"/);
-            if (match && match[1]) {
-                const canonicalUrl = match[1];
-                const channelId = canonicalUrl.split('/').pop();
-                res.json({ channelId });
-            } else {
-                res.status(404).json({ error: 'Could not resolve handle' });
+    try {
+        const request = https.get(url, (response) => {
+            console.log('[API] YouTube response status:', response.statusCode);
+            
+            if (response.statusCode === 404) {
+                return res.status(404).json({ error: 'Channel not found' });
             }
+            
+            if (response.statusCode !== 200) {
+                return res.status(response.statusCode).json({ 
+                    error: `YouTube returned status ${response.statusCode}` 
+                });
+            }
+
+            let data = '';
+            response.on('data', (chunk) => {
+                data += chunk;
+            });
+
+            response.on('end', () => {
+                console.log('[API] Received full response, searching for channel ID...');
+                // Try multiple patterns to find the channel ID
+                let channelId = null;
+                
+                // Pattern 1: Look for canonical URL
+                const canonicalMatch = data.match(/"canonicalChannelUrl":"https:\/\/www\.youtube\.com\/channel\/(UC[a-zA-Z0-9_-]{22})"/);
+                if (canonicalMatch && canonicalMatch[1]) {
+                    channelId = canonicalMatch[1];
+                }
+                
+                // Pattern 2: Look for browse ID
+                if (!channelId) {
+                    const browseMatch = data.match(/"browseId":"(UC[a-zA-Z0-9_-]{22})"/);
+                    if (browseMatch && browseMatch[1]) {
+                        channelId = browseMatch[1];
+                    }
+                }
+                
+                // Pattern 3: Look for externalId
+                if (!channelId) {
+                    const externalMatch = data.match(/"externalId":"(UC[a-zA-Z0-9_-]{22})"/);
+                    if (externalMatch && externalMatch[1]) {
+                        channelId = externalMatch[1];
+                    }
+                }
+
+                if (channelId) {
+                    console.log('[API] Found channel ID:', channelId);
+                    res.json({ channelId });
+                } else {
+                    console.log('[API] Could not find channel ID in response');
+                    res.status(404).json({ error: 'Could not resolve handle' });
+                }
+            });
         });
-    }).on('error', (err) => {
-        console.error('Error resolving handle:', err.message);
-        res.status(500).json({ error: 'Failed to fetch channel page' });
-    });
+
+        request.setTimeout(10000, () => {
+            console.log('[API] Request timed out');
+            request.destroy();
+            res.status(504).json({ error: 'Request timed out' });
+        });
+
+        request.on('error', (err) => {
+            console.error('[API] Error fetching channel page:', err);
+            res.status(500).json({ error: 'Failed to fetch channel page', details: err.message });
+        });
+    } catch (err) {
+        console.error('[API] Critical error in resolve-handle:', err);
+        res.status(500).json({ error: 'Internal server error', details: err.message });
+    }
 });
 
 export default router;

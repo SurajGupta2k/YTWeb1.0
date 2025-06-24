@@ -9,6 +9,8 @@ export const globalState = {
     videosPerPage: 50,
     currentSort: 'date_desc',
     currentSearchTerm: '',
+    currentStartDate: null,
+    currentEndDate: null,
     channelSearchMode: false,
 };
 
@@ -35,6 +37,8 @@ export function setChannelInfo(channelId, uploadsPlaylistId) {
     globalState.currentPage = 1;
     globalState.currentSort = 'date_desc';
     globalState.currentSearchTerm = '';
+    globalState.currentStartDate = null;
+    globalState.currentEndDate = null;
 }
 
 // This resets the app when we're done searching a specific channel.
@@ -47,6 +51,8 @@ export function clearChannelInfo() {
     globalState.currentPage = 1;
     globalState.currentSort = 'date_desc';
     globalState.currentSearchTerm = '';
+    globalState.currentStartDate = null;
+    globalState.currentEndDate = null;
 }
 
 // Updates the page number for the pagination controls.

@@ -84,33 +84,52 @@
                 <hr class="border-t-2 border-dashed">
 
                 <!-- Search and Actions -->
-                <div class="flex flex-col md:flex-row gap-4">
-                    <div class="flex-1 relative">
-                        <input 
-                            type="text" 
-                            id="search-input" 
-                            placeholder="Search loaded videos..."
-                            class="nb-input"
+                <div class="space-y-4">
+                    <div class="flex flex-col md:flex-row gap-4">
+                        <div class="flex-1 relative">
+                            <input 
+                                type="text" 
+                                id="search-input" 
+                                placeholder="Search loaded videos..."
+                                class="nb-input"
+                            >
+                        </div>
+                        <button 
+                            id="search-video"
+                            class="nb-button success flex items-center justify-center gap-2"
                         >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            Search
+                        </button>
+                        <button 
+                            id="categorize-videos"
+                            class="nb-button secondary flex items-center justify-center gap-2"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
+                            </svg>
+                            AI Categorize
+                        </button>
                     </div>
-                    <button 
-                        id="search-video"
-                        class="nb-button success flex items-center justify-center gap-2"
-                    >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                        </svg>
-                        Search
-                    </button>
-                    <button 
-                        id="categorize-videos"
-                        class="nb-button secondary flex items-center justify-center gap-2"
-                    >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>
-                        </svg>
-                        AI Categorize
-                    </button>
+                    <!-- Date Range Filter -->
+                    <div class="flex flex-col md:flex-row items-center gap-4 pt-4 border-t-2 border-dashed">
+                        <div class="flex-1">
+                            <label for="start-date" class="block text-sm font-medium mb-1">Start Date:</label>
+                            <input type="date" id="start-date" class="nb-input">
+                        </div>
+                        <div class="flex-1">
+                            <label for="end-date" class="block text-sm font-medium mb-1">End Date:</label>
+                            <input type="date" id="end-date" class="nb-input">
+                        </div>
+                        <div class="flex-shrink-0 self-end">
+                            <button id="filter-by-date" class="nb-button info">Filter by Date</button>
+                        </div>
+                         <div class="flex-shrink-0 self-end">
+                            <button id="clear-date-filter" class="nb-button">Clear</button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Sort Options -->

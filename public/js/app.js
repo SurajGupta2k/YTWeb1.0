@@ -56,6 +56,7 @@ export function handleChannelContentTypes(type) {
 export function applySortAndRender() {
     let filteredVideos = [...globalState.masterVideoList];
 
+    // 1. Filter by search term
     if (globalState.currentSearchTerm) {
         const searchTerm = globalState.currentSearchTerm.toLowerCase();
         filteredVideos = filteredVideos.filter(video =>
@@ -63,6 +64,27 @@ export function applySortAndRender() {
         );
     }
 
+    // 2. Filter by date range
+    if (globalState.currentStartDate) {
+        const startDate = new Date(globalState.currentStartDate);
+        // Set to the beginning of the day
+        startDate.setHours(0, 0, 0, 0); 
+        filteredVideos = filteredVideos.filter(video => {
+            const videoDate = new Date(video.publishedAt);
+            return videoDate >= startDate;
+        });
+    }
+    if (globalState.currentEndDate) {
+        const endDate = new Date(globalState.currentEndDate);
+        // Set to the end of the day to include all videos on that day
+        endDate.setHours(23, 59, 59, 999); 
+        filteredVideos = filteredVideos.filter(video => {
+            const videoDate = new Date(video.publishedAt);
+            return videoDate <= endDate;
+        });
+    }
+
+    // 3. Apply sorting
     switch (globalState.currentSort) {
         case 'date_asc':
             filteredVideos.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
@@ -77,6 +99,28 @@ export function applySortAndRender() {
 
     globalState.videos = filteredVideos;
     renderPaginatedView();
+}
+
+// New function to handle date filtering from the UI
+export function filterAndDisplayByDate(clear = false) {
+    if (clear) {
+        globalState.currentStartDate = null;
+        globalState.currentEndDate = null;
+        document.getElementById('start-date').value = '';
+        document.getElementById('end-date').value = '';
+    } else {
+        const startDate = document.getElementById('start-date').value;
+        const endDate = document.getElementById('end-date').value;
+        
+        if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+            alert('Start date cannot be after the end date.');
+            return;
+        }
+
+        globalState.currentStartDate = startDate || null;
+        globalState.currentEndDate = endDate || null;
+    }
+    applySortAndRender();
 }
 
 // When the user picks a new way to sort the videos, this function gets called.

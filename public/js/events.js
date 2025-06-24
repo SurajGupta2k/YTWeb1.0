@@ -3,7 +3,8 @@ import {
     handleChannelContentTypes,
     sortVideos,
     searchAndDisplayVideos,
-    categorizeAndDisplayVideos
+    categorizeAndDisplayVideos,
+    filterAndDisplayByDate
 } from './app.js';
 
 // This is where we hook up all the buttons and inputs to make the page interactive.
@@ -29,6 +30,10 @@ export function setupEventListeners() {
     document.getElementById('search-input').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') searchAndDisplayVideos();
     });
+
+    // Wire up the date filter buttons
+    document.getElementById('filter-by-date').addEventListener('click', () => filterAndDisplayByDate());
+    document.getElementById('clear-date-filter').addEventListener('click', () => filterAndDisplayByDate(true));
 
     // The button that tells the AI to categorize the videos.
     document.getElementById('categorize-videos').addEventListener('click', categorizeAndDisplayVideos);
