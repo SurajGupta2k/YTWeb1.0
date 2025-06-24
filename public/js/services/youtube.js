@@ -217,9 +217,15 @@ export async function loadPlaylistData(playlistId) {
 
         if (allVideos.length === 0) throw new Error('No videos found in this playlist');
 
-        await cacheData(`playlist_${playlistId}`, { videos: allVideos }, 'playlists');
+        // Immediately render the videos for the user
         setVideos(allVideos.map(normalizeVideoObject));
         applySortAndRender();
+        updateLoadingStatus('Playlist loaded successfully!', false, false, true);
+
+        // Automatically cache the result in the background
+        cacheData(`playlist_${playlistId}`, { videos: allVideos }, 'playlists')
+            .then(() => console.log('[Cache] Playlist automatically cached in background.'))
+            .catch(err => console.error('[Cache] Background playlist caching failed:', err));
 
     } catch (error) {
         console.error('[Playlist] Error:', error);
@@ -292,17 +298,23 @@ export async function loadChannelData(type) {
             alert(`No ${type === 'streams' ? 'streams' : 'videos'} found for this channel`);
             updateLoadingStatus(null);
         } else {
-             await cacheData(cacheKey, { videos: allVideos }, 'channels');
              setVideos(allVideos.map(normalizeVideoObject));
              applySortAndRender();
+             updateLoadingStatus('Channel content loaded!', false, false, true);
+             
+             // Start caching in the background
+             cacheData(cacheKey, { videos: allVideos }, 'channels')
+                .catch(err => {
+                    console.error('[Cache] Background caching failed:', err);
+                });
         }
 
     } catch (error) {
-        console.error("Error loading content:", error);
+        console.error('Error loading channel data:', error);
         if (error.message.includes('quota')) {
             await rotateApiKey();
             return loadChannelData(type);
         }
-        throw new Error(`An error occurred while loading the ${type}. Please try again.`);
+        throw new Error(`Failed to load channel ${type}`);
     }
 } 

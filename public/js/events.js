@@ -10,6 +10,7 @@ import {
 export function setupEventListeners() {
     // This handles the main "Load" button and pressing Enter in the URL bar.
     document.getElementById('load-content').addEventListener('click', loadContent);
+    
     document.getElementById('playlist-url').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') loadContent();
     });

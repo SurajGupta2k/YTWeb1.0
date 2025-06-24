@@ -2,6 +2,7 @@ import express from 'express';
 import { MongoClient } from 'mongodb';
 import { DB_CONFIG } from '../../public/js/config.js';
 import dotenv from 'dotenv';
+import https from 'https';
 
 // This file sets up all our server-side API routes.
 // It handles things like talking to the database for caching,
@@ -60,69 +61,118 @@ function rotateYoutubeKey() {
 
 initializeKeyTracking();
 
-if (!process.env.MONGODB_URI) {
-    console.error('ERROR: MONGODB_URI is not set in environment variables');
-    process.exit(1);
-}
+let client;
+let db;
+let isConnecting = false;
+let connectionPromise = null;
 
-// Here we connect to our MongoDB database. We also have a quick check
-// to make sure the connection works when the server starts.
-const client = new MongoClient(process.env.MONGODB_URI);
+async function connectToDatabase() {
+    if (isConnecting) {
+        return connectionPromise;
+    }
 
-async function testConnection() {
+    if (!process.env.MONGODB_URI) {
+        throw new Error('FATAL ERROR: MONGODB_URI is not set in environment variables');
+    }
+
     try {
-        await client.connect();
-        console.log('Successfully connected to MongoDB');
-        await client.close();
+        isConnecting = true;
+        connectionPromise = new Promise(async (resolve, reject) => {
+            try {
+                if (!client) {
+                    client = new MongoClient(process.env.MONGODB_URI, {
+                        serverSelectionTimeoutMS: 5000,
+                        socketTimeoutMS: 45000,
+                    });
+                }
+                
+                await client.connect();
+                db = client.db(DB_CONFIG.dbName);
+                
+                // Test the connection
+                await db.command({ ping: 1 });
+                console.log('Successfully connected to MongoDB and database is ready.');
+                resolve();
+            } catch (error) {
+                console.error('Failed to connect to MongoDB:', error);
+                client = null;
+                db = null;
+                reject(error);
+            } finally {
+                isConnecting = false;
+            }
+        });
+        
+        return connectionPromise;
     } catch (error) {
-        console.error('Failed to connect to MongoDB:', error);
-        process.exit(1);
+        isConnecting = false;
+        throw error;
     }
 }
 
-testConnection();
+// Ensure database connection
+async function ensureConnection() {
+    if (!db) {
+        await connectToDatabase();
+        return;
+    }
+
+    try {
+        // Test if connection is still alive
+        await db.command({ ping: 1 });
+    } catch (error) {
+        console.log('Database connection lost, reconnecting...');
+        await connectToDatabase();
+    }
+}
+
+// Connect to the DB when the server starts
+connectToDatabase().catch(error => {
+    console.error('Initial database connection failed:', error);
+});
 
 // This is a helper that runs before our cache-related routes.
 // It figures out which database collection to use based on the request
 // and makes sure we're connected to the database.
 const cacheMiddleware = async (req, res, next) => {
     try {
-        console.log('[API] Cache middleware request:', {
-            method: req.method,
-            query: req.query,
-            body: req.body
-        });
-
-        const collection = req.method === 'GET' ? req.query.collection : req.body.collection;
+        await ensureConnection();
         
-        console.log('[API] Processing collection:', collection);
+        const collectionName = req.body.collection;
         
-        if (!collection || !DB_CONFIG.collections[collection]) {
-            console.error('[API] Invalid collection:', collection);
-            return res.status(400).json({ error: `Invalid collection: ${collection}. Valid collections are: ${Object.keys(DB_CONFIG.collections).join(', ')}` });
+        if (!collectionName || !DB_CONFIG.collections[collectionName]) {
+            return res.status(400).json({ error: `Invalid or missing collection name: '${collectionName}'` });
         }
 
-        try {
-            if (!client.topology || !client.topology.isConnected()) {
-                console.log('[API] Reconnecting to MongoDB...');
-                await client.connect();
-            }
-        } catch (error) {
-            console.error('[API] MongoDB connection error:', error);
-            return res.status(500).json({ error: 'Database connection error' });
-        }
-
-        req.dbCollection = client.db(DB_CONFIG.dbName).collection(DB_CONFIG.collections[collection]);
+        req.dbCollection = db.collection(DB_CONFIG.collections[collectionName]);
         next();
     } catch (error) {
-        console.error('[API] Cache middleware error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('[API] Critical error in cache middleware:', error);
+        res.status(500).json({ error: 'Database connection error. Please try again.' });
+    }
+};
+
+const getCacheMiddleware = async (req, res, next) => {
+    try {
+        await ensureConnection();
+        
+        const collectionName = req.query.collection || req.body.collection;
+        
+        if (!collectionName || !DB_CONFIG.collections[collectionName]) {
+            return res.status(400).json({ error: `Invalid or missing collection name: '${collectionName}'` });
+        }
+
+        req.dbCollection = db.collection(DB_CONFIG.collections[collectionName]);
+        next();
+    } catch (error) {
+        console.error('[API] Critical error in get-cache middleware:', error);
+        res.status(500).json({ error: 'Database connection error. Please try again.' });
     }
 };
 
 // These routes are for basic cache operations: getting and saving items.
 // We use the cache to avoid making the same API calls over and over again.
-router.get('/cache', cacheMiddleware, async (req, res) => {
+router.get('/cache', getCacheMiddleware, async (req, res) => {
     try {
         console.log('[API] Get cache request:', req.query);
         const { key } = req.query;
@@ -153,25 +203,31 @@ router.get('/cache', cacheMiddleware, async (req, res) => {
 
 // This is just like the GET route above, but uses POST. This is useful
 // for when the cache 'key' is very long and might not fit in a URL.
-router.post('/cache/get', cacheMiddleware, async (req, res) => {
+router.post('/cache/get', getCacheMiddleware, async (req, res) => {
     try {
-        const { key, collection } = req.body;
-        if (!key || !collection) {
-            return res.status(400).json({ error: 'Key and collection are required' });
+        const { key } = req.body;
+        if (!key) {
+            return res.status(400).json({ error: 'Key is required' });
         }
 
-        const data = await req.dbCollection.findOne({ key });
+        const doc = await req.dbCollection.findOne({ key });
 
-        if (!data) {
+        if (!doc) {
             return res.status(404).json({ error: 'Cache not found' });
         }
 
-        if (data.expiresAt && new Date() > new Date(data.expiresAt)) {
+        if (doc.expiresAt && new Date() > new Date(doc.expiresAt)) {
             await req.dbCollection.deleteOne({ key });
             return res.status(404).json({ error: 'Cache expired' });
         }
 
-        res.json({ data });
+        // We only want to return the actual cached data, not the whole document.
+        const dataToReturn = {};
+        if (doc.videos) dataToReturn.videos = doc.videos;
+        if (doc.channelId) dataToReturn.channelId = doc.channelId;
+        if (doc.uploadsPlaylistId) dataToReturn.uploadsPlaylistId = doc.uploadsPlaylistId;
+
+        res.json({ data: dataToReturn });
     } catch (error) {
         console.error('[API] POST Get cache error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -180,52 +236,75 @@ router.post('/cache/get', cacheMiddleware, async (req, res) => {
 
 router.post('/cache', cacheMiddleware, async (req, res) => {
     try {
-        console.log('[API] Store cache request:', {
-            key: req.body.key,
-            collection: req.body.collection,
-            dataSize: req.body.data ? Object.keys(req.body.data).length : 0
-        });
-
         const { key, data, collection } = req.body;
+        
         if (!key || !data || !collection) {
-            console.error('[API] Missing required fields');
             return res.status(400).json({ error: 'Key, data, and collection are required' });
         }
+
+        // Log the request but sanitize potentially large data
+        console.log('[API] Store cache request:', {
+            key,
+            collection,
+            dataSize: data ? JSON.stringify(data).length : 0
+        });
 
         const expiryHours = DB_CONFIG.cacheExpiry[collection] || 24;
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + expiryHours);
 
-        const cacheData = {
+        // Prepare the cache document
+        const cacheDoc = {
             key,
-            ...data,
             collection,
             expiresAt,
             updatedAt: new Date(),
             cacheVersion: '1.0'
         };
 
-        console.log('[API] Storing data with key:', key);
-        const result = await req.dbCollection.updateOne(
-            { key },
-            { $set: cacheData },
-            { upsert: true }
-        );
+        // Add the actual data based on what's provided
+        if (data.videos) cacheDoc.videos = data.videos;
+        if (data.channelId) cacheDoc.channelId = data.channelId;
+        if (data.uploadsPlaylistId) cacheDoc.uploadsPlaylistId = data.uploadsPlaylistId;
 
-        console.log('[API] Store result:', {
-            matched: result.matchedCount,
-            modified: result.modifiedCount,
-            upserted: result.upsertedCount
-        });
+        // Attempt to store with retries
+        let attempts = 0;
+        const maxAttempts = 3;
+        
+        while (attempts < maxAttempts) {
+            try {
+                const result = await req.dbCollection.updateOne(
+                    { key },
+                    { $set: cacheDoc },
+                    { upsert: true }
+                );
 
-        res.json({ 
-            message: 'Cache stored successfully',
-            expiresAt,
-            operation: result.upsertedCount > 0 ? 'inserted' : 'updated'
-        });
+                console.log('[API] Store result:', {
+                    matched: result.matchedCount,
+                    modified: result.modifiedCount,
+                    upserted: result.upsertedCount
+                });
+
+                return res.json({ 
+                    message: 'Cache stored successfully',
+                    expiresAt,
+                    operation: result.upsertedCount > 0 ? 'inserted' : 'updated'
+                });
+            } catch (error) {
+                attempts++;
+                if (attempts === maxAttempts) {
+                    throw error;
+                }
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
     } catch (error) {
         console.error('[API] Store cache error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ 
+            error: 'Failed to store cache',
+            details: error.message
+        });
     }
 });
 
@@ -238,8 +317,8 @@ router.get('/cache/all/:collection', async (req, res) => {
             return res.status(400).json({ error: 'Invalid collection' });
         }
 
-        const db = client.db(DB_CONFIG.dbName);
-        const data = await db.collection(DB_CONFIG.collections[collection])
+        const cacheCollection = db.collection(DB_CONFIG.collections[collection]);
+        const data = await cacheCollection
             .find({ 
                 expiresAt: { $gt: new Date() } 
             })
@@ -265,7 +344,7 @@ router.delete('/cache/expired', async (req, res) => {
         const collections = Object.values(DB_CONFIG.collections);
         const results = await Promise.all(
             collections.map(async (collectionName) => {
-                const collection = client.db(DB_CONFIG.dbName).collection(collectionName);
+                const collection = db.collection(collectionName);
                 const result = await collection.deleteMany({
                     expiresAt: { $lt: new Date() }
                 });
@@ -289,7 +368,7 @@ router.get('/cache/status', async (req, res) => {
         const collections = Object.values(DB_CONFIG.collections);
         const status = await Promise.all(
             collections.map(async (collectionName) => {
-                const collection = client.db(DB_CONFIG.dbName).collection(collectionName);
+                const collection = db.collection(collectionName);
                 const total = await collection.countDocuments();
                 const expired = await collection.countDocuments({
                     expiresAt: { $lt: new Date() }
@@ -398,72 +477,27 @@ router.get('/resolve-handle', async (req, res) => {
         return res.status(400).json({ error: 'Handle is required' });
     }
 
-    try {
-        const response = await fetch(`https://www.youtube.com/@${handle}`);
-        if (!response.ok) {
-            throw new Error(`YouTube handle '@${handle}' not found or network error.`);
-        }
-        const html = await response.text();
-        
-        const match = html.match(/<link rel="canonical" href="https:\/\/www.youtube.com\/channel\/(UC[\w-]{22})">/);
-        
-        if (match && match[1]) {
-            const channelId = match[1];
-            res.json({ channelId });
-        } else {
-            throw new Error(`Could not resolve channel ID for handle '@${handle}'. The page structure might have changed.`);
-        }
-    } catch (error) {
-        console.error(`[API/resolve-handle] Error: ${error.message}`);
-        res.status(404).json({ error: error.message });
-    }
-});
+    const url = `https://www.youtube.com/@${handle}`;
 
-router.post('/cache-chunk', async (req, res) => {
-    const { key, collection, chunk, isFirstChunk } = req.body;
-
-    if (!key || !collection || !chunk || !Array.isArray(chunk)) {
-        return res.status(400).json({ error: 'Missing required fields for chunked caching.' });
-    }
-
-    let client;
-    try {
-        client = new MongoClient(process.env.MONGODB_URI || DB_CONFIG.CONNECTION_STRING);
-        await client.connect();
-        const db = client.db(DB_CONFIG.DB_NAME);
-        const cacheCollection = db.collection(collection);
-
-        if (isFirstChunk) {
-            // For the first chunk, we delete the old entry and create a new one.
-            await cacheCollection.deleteOne({ key });
-            const result = await cacheCollection.insertOne({
-                key,
-                data: { videos: chunk },
-                createdAt: new Date()
-            });
-            res.status(201).json({ success: true, insertedId: result.insertedId });
-        } else {
-            // For subsequent chunks, we append to the 'videos' array.
-            const result = await cacheCollection.updateOne(
-                { key },
-                { $push: { 'data.videos': { $each: chunk } } }
-            );
-
-            if (result.matchedCount === 0) {
-                return res.status(404).json({ error: `Cache entry with key "${key}" not found for appending chunk.` });
+    https.get(url, (response) => {
+        let data = '';
+        response.on('data', (chunk) => {
+            data += chunk;
+        });
+        response.on('end', () => {
+            const match = data.match(/"canonicalChannelUrl":"(.*?)"/);
+            if (match && match[1]) {
+                const canonicalUrl = match[1];
+                const channelId = canonicalUrl.split('/').pop();
+                res.json({ channelId });
+            } else {
+                res.status(404).json({ error: 'Could not resolve handle' });
             }
-
-            res.status(200).json({ success: true, modifiedCount: result.modifiedCount });
-        }
-
-    } catch (error) {
-        console.error('Error during chunked caching:', error);
-        res.status(500).json({ error: 'Failed to cache chunk to database.' });
-    } finally {
-        if (client) {
-            await client.close();
-        }
-    }
+        });
+    }).on('error', (err) => {
+        console.error('Error resolving handle:', err.message);
+        res.status(500).json({ error: 'Failed to fetch channel page' });
+    });
 });
 
 export default router;

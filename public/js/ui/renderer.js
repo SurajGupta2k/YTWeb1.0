@@ -188,7 +188,10 @@ export function renderPaginatedView() {
 
 // Shows extra options for a channel, like sorting or categorizing.
 export function showChannelOptions() {
-    document.getElementById('channel-options').style.display = 'block';
+    const optionsContainer = document.getElementById('channel-options');
+    optionsContainer.style.display = 'block';
+
+    // The playlist controls container is left for potential future use.
 }
 
 // This handles the loading message and spinner that you see when the app is working.

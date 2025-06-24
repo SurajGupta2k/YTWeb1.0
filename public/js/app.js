@@ -43,6 +43,8 @@ export async function loadContent() {
     }
 }
 
+// The manualCache function has been removed in favor of automatic caching.
+
 // Once a channel is loaded, this handles switching between viewing
 // regular videos and live streams.
 export function handleChannelContentTypes(type) {
@@ -94,3 +96,5 @@ export function searchAndDisplayVideos() {
 export function categorizeAndDisplayVideos() {
     categorizeVideos();
 }
+
+// Event listeners are now handled in events.js
