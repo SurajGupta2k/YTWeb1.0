@@ -112,7 +112,63 @@ body.dark .nb-button.info {
   font-weight: 500;
   transition: all 0.2s ease-in-out;
   box-shadow: var(--nb-shadow-offset) var(--nb-shadow-offset) 0 var(--nb-border-color);
+  -webkit-appearance: none; /* Fix for iOS */
+  appearance: none; /* Fix for modern browsers */
 }
+
+/* Date input specific styles */
+input[type="date"].nb-input {
+  min-height: 48px; /* Minimum touch target size */
+  font-size: 16px; /* Prevent zoom on iOS */
+  padding-right: 0.5rem; /* Make room for the calendar icon */
+  position: relative;
+  cursor: pointer;
+}
+
+/* Fix for dark mode date inputs */
+body.dark input[type="date"].nb-input {
+  color-scheme: dark; /* Use dark color scheme for the calendar picker */
+  background-color: #252525;
+  color: var(--nb-text);
+}
+
+/* Fix for date input calendar icon */
+input[type="date"].nb-input::-webkit-calendar-picker-indicator {
+  background-color: transparent;
+  padding: 0.5rem;
+  cursor: pointer;
+  position: absolute;
+  right: 0;
+  filter: var(--calendar-icon-filter, none); /* Will be set in dark mode */
+}
+
+body.dark input[type="date"].nb-input::-webkit-calendar-picker-indicator {
+  --calendar-icon-filter: invert(1); /* Invert calendar icon color in dark mode */
+}
+
+/* Make date inputs full width on mobile */
+@media (max-width: 768px) {
+  .date-range-container {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .date-range-container > div {
+    width: 100%;
+  }
+  
+  input[type="date"].nb-input {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Increase touch target size for mobile */
+  .date-range-container button {
+    min-height: 48px;
+    width: 100%;
+  }
+}
+
 body.dark .nb-input {
   background-color: #252525;
   color: var(--nb-text);
