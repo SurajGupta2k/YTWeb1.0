@@ -1,5 +1,5 @@
 # Files that contain secrets and private info
-.env
+# .env
 .env.local
 .env.development.local
 .env.test.local
