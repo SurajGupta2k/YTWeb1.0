@@ -1,3 +1,17 @@
+    // intenintentionally pushed this check something it not actually keys 
+    // # YouTube API Keys
+    // YOUTUBE_API_KEY_1=AIzaSyACa
+    // YOUTUBE_API_KEY_2=AIzaSyARk
+    // YOUTUBE_API_KEY_3=AIzaSy
+    // YOUTUBE_API_KEY_4=AIzaSyDF
+    // YOUTUBE_API_KEY_5=AIzaSy
+    
+    // # MongoDB Connection URI
+    // MONGODB_URI=mongodb+srv:
+    
+    // # Gemini API Key
+    // GEMINI_API_KEY=AIzaSy
+
 import dotenv from 'dotenv';
 dotenv.config();
 
