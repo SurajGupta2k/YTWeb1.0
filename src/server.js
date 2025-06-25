@@ -1,17 +1,17 @@
     // intenintentionally pushed this check something it not actually keys 
-    // # YouTube API Keys
-    // YOUTUBE_API_KEY_1=AIzaSyACa
-    // YOUTUBE_API_KEY_2=AIzaSyARk
-    // YOUTUBE_API_KEY_3=AIzaSy
-    // YOUTUBE_API_KEY_4=AIzaSyDF
-    // YOUTUBE_API_KEY_5=AIzaSy
+    # YouTube API Keys
+    YOUTUBE_API_KEY_1=AIzaSyACa-u0MCCbw5TEU2cw7qTgy4mmKq8_KWI
+    YOUTUBE_API_KEY_2=AIzaSyARk_biBXGLZEfuMXm2plw9QDmsrSlld0w
+    YOUTUBE_API_KEY_3=AIzaSyAfAxofftgj_r1LP1KcvTHof94AIgFL1l8
+    YOUTUBE_API_KEY_4=AIzaSyDFrOkjC18GKf2kkLuagJm_irsNcuCYBRY
+    YOUTUBE_API_KEY_5=AIzaSyBJPNjjSjSLU0l0Y_rQ0af0Z7elWNNrgbQ
     
-    // # MongoDB Connection URI
-    // MONGODB_URI=mongodb+srv:
+    # MongoDB Connection URI
+    MONGODB_URI=mongodb+srv://tempid3738:gh9tnaN5rLz4FIxG@cluster0.mkvbq.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
     
-    // # Gemini API Key
-    // GEMINI_API_KEY=AIzaSy
-
+    # Gemini API Key
+    GEMINI_API_KEY=AIzaSyAbPUZqTr7vR0nMrnL2-L_NS-3_sjvcvnY 
+    
 import dotenv from 'dotenv';
 dotenv.config();
 
