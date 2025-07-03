@@ -116,18 +116,3 @@ tubesort/
 ## 📄 License
 
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
-## 👏 Acknowledgments
-
-- YouTube Data API for content access
-- Google Gemini for AI capabilities
-- Tailwind CSS for styling
-- Express.js community
-- MongoDB team
-
-## 📫 Contact
-
-Project Link: [https://github.com/yourusername/tubesort](https://github.com/yourusername/tubesort)
-
----
-Made with ❤️ using Node.js and MongoDB 
